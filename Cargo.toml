@@ -1,0 +1,17 @@
+[package]
+name = "aoc2022"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "common"
+path = "src/lib.rs"
+
+[dependencies]
+chrono = "0.4.6"
+time = "0.1.40"
+num = { version = "0.4.0" }
+rustc-hash = "1.1.0"
+smallvec = { version = "1.7.0", features = ["specialization"] }
+md5 = "0.7.0"
+rayon = "1.5.1"
