@@ -154,6 +154,6 @@ mod tests {
         let (line1, _) = Line::parse(b"turn on 0,0 through 999,999").unwrap();
         let (line2, _) = Line::parse(b"turn off 500,0 through 999,0").unwrap();
         let (line3, _) = Line::parse(b"toggle 0,0 through 999,0").unwrap();
-        assert_eq!(part1(&[line1, line2]), 999500);
+        assert_eq!(part1(&[line1, line2, line3]), 999500);
     }
 }

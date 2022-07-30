@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn part2_counts_right() {
-        assert_eq!(part1(&[
+        assert_eq!(part2(&[
             *b"qjhvhtzxzqqjkmpb",
             *b"uurcxstgmygtbstg",
             *b"ieodomkazucvgmuy",
