@@ -57,7 +57,7 @@ impl<T, const S: usize, const W: usize> GetterGrid<T> for ArrayGrid<T, S, W> {
 
 impl<T, const S: usize, const W: usize> IterableSliceGrid<T> for ArrayGrid<T, S, W> {
     fn cells(&self) -> SliceIter<'_, T> {
-        SliceIter { width: W, pos: 0, data: &self.data }
+        SliceIter::new(&self.data, W)
     }
 }
 
@@ -84,6 +84,41 @@ impl<T, const S: usize, const W: usize> RowGrid<T> for ArrayGrid<T, S, W> {
 pub struct VecGrid<T> {
     data: Vec<T>,
     width: usize,
+}
+
+impl<T> VecGrid<T> {
+    pub fn new_from(width: usize, data: Vec<T>) -> Self {
+        assert!(data.len() >= width);
+        assert_eq!(data.len() % width, 0);
+
+        VecGrid{data, width}
+    }
+}
+
+impl<T> VecGrid<T> where T: Eq + Copy {
+    pub fn parse_lines(raw: &[T], newline: T) -> Option<Self> {
+        let width = raw.iter().take_while(|v| **v != newline).count();
+        let data: Vec<T> = raw.iter().filter(|v| **v != newline).copied().collect();
+
+        if data.len() % width == 0 {
+            Some(VecGrid{data, width})
+        } else {
+            None
+        }
+    }
+}
+
+
+impl<T> VecGrid<T> where T: Copy {
+    pub fn new_with(width: usize, height: usize, v: T) -> Self {
+        VecGrid{data: vec![v; width * height], width}
+    }
+}
+
+impl<T> VecGrid<T> where T: Copy + Default {
+    pub fn new(width: usize, height: usize) -> Self {
+        VecGrid{data: vec![Default::default(); width * height], width}
+    }
 }
 
 impl<T> FixedGrid for VecGrid<T> {
@@ -133,6 +168,12 @@ impl<T> RowGrid<T> for VecGrid<T> {
     }
 }
 
+impl<T> IterableSliceGrid<T> for VecGrid<T> {
+    fn cells(&self) -> SliceIter<'_, T> {
+        return SliceIter::new(&self.data, self.width)
+    }
+}
+
 pub trait FixedGrid {
     fn width(&self) -> usize;
     fn height(&self) -> usize;
@@ -157,6 +198,20 @@ pub struct SliceIter<'a, T> {
     data: &'a [T],
     pos: usize,
     width: usize,
+    x: usize,
+    y: usize,
+}
+
+impl<'a, T> SliceIter<'a, T> {
+    fn new(data: &'a [T], width: usize) -> Self {
+        SliceIter {
+            data,
+            width,
+            pos: 0,
+            x: 0,
+            y: 0,
+        }
+    }
 }
 
 impl<'a, T> Iterator for SliceIter<'a, T> {
@@ -165,32 +220,48 @@ impl<'a, T> Iterator for SliceIter<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.data.get(self.pos) {
             Some(v) => {
-                let x = self.pos % self.width;
-                let y = self.pos / self.width;
+                let x = self.x;
+                let y = self.y;
+
                 self.pos += 1;
+                self.x += 1;
+                if self.x == self.width {
+                    self.x = 0;
+                    self.y += 1;
+                }
 
                 Some((Point(x, y), v))
             }
             None => None
         }
     }
+
+    fn count(self) -> usize where Self: Sized {
+        self.data.len()
+    }
 }
 
-#[test]
-fn test_array_grid() {
-    let mut ag: ArrayGrid<i32, 160, 16> = ArrayGrid::new_with(0);
-    assert_eq!(ag.width(), 16);
-    assert_eq!(ag.height(), 10);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    *ag.get_mut(&Point(14, 3)).unwrap() = 64;
-    *ag.get_mut(&Point(11, 0)).unwrap() = 112;
+    #[test]
+    fn test_array_grid() {
+        let mut ag: ArrayGrid<i32, 160, 16> = ArrayGrid::new_with(0);
+        assert_eq!(ag.width(), 16);
+        assert_eq!(ag.height(), 10);
 
-    assert_eq!(ag.cells().count(), 160);
-    assert_eq!(ag.row(0), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 112, 0, 0, 0, 0].as_slice()));
-    assert_eq!(ag.row(1), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].as_slice()));
-    assert_eq!(ag.row(2), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].as_slice()));
-    assert_eq!(ag.row(3), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0].as_slice()));
-    assert_eq!(ag.cells().find(|(Point(x, y), i)| **i == 64 && *x == 14 && *y == 3).is_some(), true);
-    assert_eq!(ag.cells().find(|(Point(x, y), i)| **i == 112 && *x == 11 && *y == 0).is_some(), true);
-    assert_eq!(ag.cells().find(|(Point(x, y), i)| **i == 175 && *x == 10 && *y == 1).is_some(), false);
+        *ag.get_mut(&Point(14, 3)).unwrap() = 64;
+        *ag.get_mut(&Point(11, 0)).unwrap() = 112;
+
+        assert_eq!(ag.cells().count(), 160);
+        assert_eq!(ag.cells().filter(|_| true).count(), 160);
+        assert_eq!(ag.row(0), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 112, 0, 0, 0, 0].as_slice()));
+        assert_eq!(ag.row(1), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].as_slice()));
+        assert_eq!(ag.row(2), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].as_slice()));
+        assert_eq!(ag.row(3), Some([0i32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0].as_slice()));
+        assert_eq!(ag.cells().find(|(Point(x, y), i)| **i == 64 && *x == 14 && *y == 3).is_some(), true);
+        assert_eq!(ag.cells().find(|(Point(x, y), i)| **i == 112 && *x == 11 && *y == 0).is_some(), true);
+        assert_eq!(ag.cells().find(|(Point(x, y), i)| **i == 175 && *x == 10 && *y == 1).is_some(), false);
+    }
 }

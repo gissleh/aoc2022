@@ -71,6 +71,16 @@ pub fn word(data: &[u8]) -> Option<(&[u8], &[u8])> {
     }
 }
 
+pub fn until_byte<const B: u8>(data: &[u8]) -> Option<(&[u8], &[u8])> {
+    if data.is_empty() {
+        None
+    } else {
+        let len = data.iter().take_while(|v| **v != B).count();
+        Some((&data[..len], &data[len..]))
+    }
+}
+
+
 pub fn int<T: Integer + Copy + From<u8> + Neg<Output=T>>(data: &[u8]) -> Option<(T, &[u8])> {
     if data.is_empty() {
         return None;
@@ -156,6 +166,7 @@ pub fn hex_number(data: &[u8]) -> Option<(u8, &[u8])> {
     match hex {
         b'0'..=b'9' => Some((hex - b'0', &data[1..])),
         b'A'..=b'F' => Some(((hex - b'A') + 10, &data[1..])),
+        b'a'..=b'f' => Some(((hex - b'a') + 10, &data[1..])),
         _ => None,
     }
 }

@@ -4,3 +4,4 @@ pub mod geo;
 pub mod octree;
 pub mod grid;
 pub mod grid2;
+pub mod astar;

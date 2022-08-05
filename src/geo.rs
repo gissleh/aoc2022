@@ -3,6 +3,7 @@ use std::ops::{Add, Mul, Neg, Sub, Shr};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
 
+#[derive(Hash)]
 pub struct Point<T> (pub T, pub T);
 
 impl<T> Point<T> {
