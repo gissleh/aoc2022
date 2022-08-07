@@ -53,7 +53,11 @@ pub fn line(data: &[u8]) -> Option<(&[u8], &[u8])> {
         Some((data, data))
     } else {
         let len = data.iter().take_while(|v| **v != b'\n').count();
-        Some((&data[..len], &data[len+1..]))
+        if len == data.len() {
+            Some((&data[..len], &data[len..]))
+        } else {
+            Some((&data[..len], &data[len+1..]))
+        }
     }
 }
 

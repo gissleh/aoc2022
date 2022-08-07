@@ -45,14 +45,14 @@ impl<T> Octant<T> where T: Copy {
 
         if let Octant::Leaf(leaf_value) = self {
             *self = Octant::Branch(Box::new([
-                Octant::Leaf(leaf_value.clone()),
-                Octant::Leaf(leaf_value.clone()),
-                Octant::Leaf(leaf_value.clone()),
-                Octant::Leaf(leaf_value.clone()),
-                Octant::Leaf(leaf_value.clone()),
-                Octant::Leaf(leaf_value.clone()),
-                Octant::Leaf(leaf_value.clone()),
-                Octant::Leaf(leaf_value.clone()),
+                Octant::Leaf(*leaf_value),
+                Octant::Leaf(*leaf_value),
+                Octant::Leaf(*leaf_value),
+                Octant::Leaf(*leaf_value),
+                Octant::Leaf(*leaf_value),
+                Octant::Leaf(*leaf_value),
+                Octant::Leaf(*leaf_value),
+                Octant::Leaf(*leaf_value),
             ]))
         }
 
