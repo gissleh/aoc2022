@@ -6,9 +6,9 @@ use common::search::{astar, AStarState, BFS, BFSExploreState, BFSState};
 
 common::day!(parse, part1, part2, 100, 1000, 1000);
 
-fn part1(graph: &Graph<(u16, Point<usize>), (u32, i32)>) -> u32 {
-    let aa = graph.find_by(|(pid, _)| *pid == AA).unwrap();
-    let zz = graph.find_by(|(pid, _)| *pid == ZZ).unwrap();
+fn part1(graph: &Graph<u16, (u32, i32)>) -> u32 {
+    let aa = graph.find(&AA).unwrap();
+    let zz = graph.find(&ZZ).unwrap();
     let init = GraphPathState { index: aa };
 
     astar(graph,
@@ -19,9 +19,9 @@ fn part1(graph: &Graph<(u16, Point<usize>), (u32, i32)>) -> u32 {
     ).unwrap().0
 }
 
-fn part2(graph: &Graph<(u16, Point<usize>), (u32, i32)>) -> u32 {
-    let aa = graph.find_by(|(pid, _)| *pid == AA).unwrap();
-    let zz = graph.find_by(|(pid, _)| *pid == ZZ).unwrap();
+fn part2(graph: &Graph<u16, (u32, i32)>) -> u32 {
+    let aa = graph.find(&AA).unwrap();
+    let zz = graph.find(&ZZ).unwrap();
     let init = GraphPathStateP2 { level: 0, index: aa };
 
     astar(graph,
@@ -32,10 +32,11 @@ fn part2(graph: &Graph<(u16, Point<usize>), (u32, i32)>) -> u32 {
     ).unwrap().0
 }
 
-fn parse(data: &[u8]) -> Graph<(u16, Point<usize>), (u32, i32)> {
+fn parse(data: &[u8]) -> Graph<u16, (u32, i32)> {
     let raw_grid = VecGrid::parse_lines(data, b'\n').unwrap();
     let mut data = Vec::with_capacity(raw_grid.width() * raw_grid.height());
     let mut graph = Graph::new();
+    let mut positions = Vec::with_capacity(32);
 
     for (Point(x, y), v) in raw_grid.cells() {
         if *v != b'.' {
@@ -48,28 +49,32 @@ fn parse(data: &[u8]) -> Graph<(u16, Point<usize>), (u32, i32)> {
         let u2 = raw_grid.get(&Point(x, y - 2)).unwrap();
         if let Some(portal_id) = portal_id(outer, [*u2, *u1]) {
             data.push(MazePosition::Portal(portal_id));
-            graph.insert((portal_id, Point(x, y)));
+            graph.insert(portal_id);
+            positions.push(Point(x, y));
             continue;
         }
         let d1 = raw_grid.get(&Point(x, y + 1)).unwrap();
         let d2 = raw_grid.get(&Point(x, y + 2)).unwrap();
         if let Some(portal_id) = portal_id(outer, [*d1, *d2]) {
             data.push(MazePosition::Portal(portal_id));
-            graph.insert((portal_id, Point(x, y)));
+            graph.insert(portal_id);
+            positions.push(Point(x, y));
             continue;
         }
         let l1 = raw_grid.get(&Point(x - 1, y)).unwrap();
         let l2 = raw_grid.get(&Point(x - 2, y)).unwrap();
         if let Some(portal_id) = portal_id(outer, [*l2, *l1]) {
             data.push(MazePosition::Portal(portal_id));
-            graph.insert((portal_id, Point(x, y)));
+            graph.insert(portal_id);
+            positions.push(Point(x, y));
             continue;
         }
         let r1 = raw_grid.get(&Point(x + 1, y)).unwrap();
         let r2 = raw_grid.get(&Point(x + 2, y)).unwrap();
         if let Some(portal_id) = portal_id(outer, [*r1, *r2]) {
             data.push(MazePosition::Portal(portal_id));
-            graph.insert((portal_id, Point(x, y)));
+            graph.insert(portal_id);
+            positions.push(Point(x, y));
             continue;
         }
 
@@ -80,7 +85,8 @@ fn parse(data: &[u8]) -> Graph<(u16, Point<usize>), (u32, i32)> {
 
     let mut bfs = BFS::new();
     for i in 0..graph.len() {
-        let (my_id, pos) = graph.node(i).unwrap().clone();
+        let my_id = *graph.node(i).unwrap();
+        let pos = positions[i];
 
         bfs.explore(&grid, GridBFSState { pos });
         for (other_id, steps) in bfs.found_goals().iter() {
@@ -88,13 +94,12 @@ fn parse(data: &[u8]) -> Graph<(u16, Point<usize>), (u32, i32)> {
                 continue;
             }
 
-            let j = graph.find_by(|(portal_id, _)| portal_id.eq(other_id)).unwrap();
+            let j = graph.find(other_id).unwrap();
             graph.connect(i, j, (*steps, 0));
         }
 
         if my_id >= OUTER {
-            let found_j = graph.find_by(|(id, _)| *id == my_id - OUTER);
-            if let Some(j) = found_j {
+            if let Some(j) = graph.find(&(my_id - OUTER)) {
                 graph.connect(i, j, (1, 1));
                 graph.connect(j, i, (1, -1));
             }
@@ -109,16 +114,16 @@ struct GraphPathState {
     index: usize,
 }
 
-impl AStarState<Graph<(u16, Point<usize>), (u32, i32)>, usize, u32> for GraphPathState {
-    fn heuristic(&self, _graph: &Graph<(u16, Point<usize>), (u32, i32)>, _goal: &usize) -> u32 {
+impl AStarState<Graph<u16, (u32, i32)>, usize, u32> for GraphPathState {
+    fn heuristic(&self, _graph: &Graph<u16, (u32, i32)>, _goal: &usize) -> u32 {
         0
     }
 
-    fn is_goal(&self, _graph: &Graph<(u16, Point<usize>), (u32, i32)>, goal: &usize) -> bool {
+    fn is_goal(&self, _graph: &Graph<u16, (u32, i32)>, goal: &usize) -> bool {
         self.index == *goal
     }
 
-    fn next(&self, graph: &Graph<(u16, Point<usize>), (u32, i32)>, buffer: &mut Vec<(u32, Self)>) {
+    fn next(&self, graph: &Graph<u16, (u32, i32)>, buffer: &mut Vec<(u32, Self)>) {
         for (new_index, (dist, _)) in graph.edges(self.index).unwrap() {
             buffer.push((*dist, Self { index: *new_index }));
         }
@@ -131,18 +136,18 @@ struct GraphPathStateP2 {
     level: i32,
 }
 
-impl AStarState<Graph<(u16, Point<usize>), (u32, i32)>, usize, u32> for GraphPathStateP2 {
-    fn heuristic(&self, _graph: &Graph<(u16, Point<usize>), (u32, i32)>, _goal: &usize) -> u32 {
+impl AStarState<Graph<u16, (u32, i32)>, usize, u32> for GraphPathStateP2 {
+    fn heuristic(&self, _graph: &Graph<u16, (u32, i32)>, _goal: &usize) -> u32 {
         0
     }
 
-    fn is_goal(&self, _graph: &Graph<(u16, Point<usize>), (u32, i32)>, goal: &usize) -> bool {
+    fn is_goal(&self, _graph: &Graph<u16, (u32, i32)>, goal: &usize) -> bool {
         self.index == *goal
     }
 
-    fn next(&self, graph: &Graph<(u16, Point<usize>), (u32, i32)>, buffer: &mut Vec<(u32, Self)>) {
+    fn next(&self, graph: &Graph<u16, (u32, i32)>, buffer: &mut Vec<(u32, Self)>) {
         for (new_index, (dist, level_change)) in graph.edges(self.index).unwrap() {
-            let (portal_id, _) = graph.node(*new_index).unwrap();
+            let portal_id = graph.node(*new_index).unwrap();
 
             if self.level == 0 {
                 // Skip if it's going from to an outer (aside from warping inward)
