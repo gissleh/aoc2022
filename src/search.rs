@@ -296,12 +296,12 @@ mod tests {
         let maze = VecGrid::parse_lines(MAZE_2, b'\n').unwrap();
         let mut bfs = BFS::new();
 
-        assert_eq!(bfs.run(&maze, &b'x', MazeBFS{pos: Point(1, 1)}), Some(24));
-        assert_eq!(bfs.run(&maze, &b'a', MazeBFS{pos: Point(1, 1)}), Some(0));
-        assert_eq!(bfs.run(&maze, &b'b', MazeBFS{pos: Point(1, 1)}), Some(15));
-        assert_eq!(bfs.run(&maze, &b'y', MazeBFS{pos: Point(1, 1)}), None);
+        assert_eq!(bfs.run(&maze, &b'x', MazeBFS { pos: Point(1, 1) }), Some(24));
+        assert_eq!(bfs.run(&maze, &b'a', MazeBFS { pos: Point(1, 1) }), Some(0));
+        assert_eq!(bfs.run(&maze, &b'b', MazeBFS { pos: Point(1, 1) }), Some(15));
+        assert_eq!(bfs.run(&maze, &b'y', MazeBFS { pos: Point(1, 1) }), None);
 
-        bfs.explore(&maze, MazeBFS{pos: Point(1, 1)});
+        bfs.explore(&maze, MazeBFS { pos: Point(1, 1) });
         assert_eq!(bfs.found_goals(), &[
             (b'a', 0), (b'z', 10), (b'b', 15), (b'i', 17),
             (b'r', 20), (b't', 21), (b'x', 24),
