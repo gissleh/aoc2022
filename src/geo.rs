@@ -1,10 +1,16 @@
-use std::fmt::Formatter;
+use std::fmt::{Display, Formatter};
 use std::ops::{Add, Mul, Neg, Sub, Shr};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
 
 #[derive(Hash)]
 pub struct Point<T> (pub T, pub T);
+
+impl<T> Display for Point<T> where T: Display {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<{}, {}>", self.0, self.1)
+    }
+}
 
 impl<T> Point<T> {
     #[inline]
@@ -19,6 +25,15 @@ impl<T> Point<T> where T: Roots + Sub<Output=T> + Copy {
             pow(rhs.0 - self.0, 2)
                 + pow(rhs.1 - self.1, 2)
         )
+    }
+}
+
+impl<T> Point<T> where T: Sub<Output=T> + Add<Output=T> + Copy + Ord {
+    pub fn manhattan_distance(&self, rhs: &Point<T>) -> T {
+        let a = if self.0 > rhs.0 { self.0 - rhs.0 } else { rhs.0 - self.0 };
+        let b = if self.1 > rhs.1 { self.1 - rhs.1 } else { rhs.1 - self.1 };
+
+        a + b
     }
 }
 

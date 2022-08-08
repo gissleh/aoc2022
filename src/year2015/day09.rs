@@ -1,6 +1,7 @@
-use common::search::{astar, AStarState};
 use common::graph::Graph;
 use common::parse;
+use common::search::{Dijkstra};
+use common::search::DijkstraResult::{Continue, Success};
 
 common::day!(parse, part1, part2, 10000, 100, 100);
 
@@ -8,11 +9,28 @@ pub fn part1(graph: &Graph<&[u8], u32>) -> u32 {
     let mut min = u32::MAX;
     let goal_mask = (1 << graph.len() as u32) - 1u32;
 
-    for i in 0..graph.len() {
-        let initial_visit = 1u32 << i as u32;
-        let tm = TravelingSalesman{visit_map: initial_visit, pos: i};
+    let mut dijkstra = Dijkstra::new(true, true);
 
-        if let Some((s, _)) = astar(graph, &goal_mask, tm, 0, true, false) {
+    for i in 0..graph.len() {
+        let initial_mask = 1u32 << i as u32;
+
+        let res = dijkstra.run((i, initial_mask), 0, |(pos, visit_mask)| {
+            if *visit_mask == goal_mask {
+                Success
+            } else {
+                Continue(graph.edges(*pos).unwrap().filter_map(|(new_pos, distance)| {
+                    let city_mask = 1 << *new_pos as u32;
+
+                    if visit_mask & city_mask == 0 {
+                        Some((*distance, 0, (*new_pos, visit_mask | city_mask)))
+                    } else {
+                        None
+                    }
+                }).collect())
+            }
+        });
+
+        if let Some((s, _)) = res {
             if s < min {
                 min = s;
             }
@@ -22,43 +40,32 @@ pub fn part1(graph: &Graph<&[u8], u32>) -> u32 {
     min
 }
 
-#[derive(Hash, Copy, Clone, Eq, PartialEq)]
-struct TravelingSalesman {
-    visit_map: u32,
-    pos: usize,
-}
-
-impl AStarState<Graph<&[u8], u32>, u32, u32> for TravelingSalesman {
-    fn heuristic(&self, _graph: &Graph<&[u8], u32>, _goal: &u32) -> u32 {
-        0
-    }
-
-    fn is_goal(&self, _graph: &Graph<&[u8], u32>, goal: &u32) -> bool {
-        self.visit_map.eq(goal)
-    }
-
-    fn next(&self, graph: &Graph<&[u8], u32>, buffer: &mut Vec<(u32, Self)>) {
-        for (new_pos, cost) in graph.edges(self.pos).unwrap() {
-            let mask = 1 << *new_pos as u32;
-
-            if self.visit_map & mask == 0 {
-                buffer.push((*cost, TravelingSalesman{
-                    pos: *new_pos,
-                    visit_map: self.visit_map | mask,
-                }));
-            }
-        }
-    }
-}
-
 pub fn part2(graph: &Graph<&[u8], u32>) -> u32 {
-    let mut min = 0;
+    let mut min = 0i32;
     let goal_mask = (1 << graph.len() as u32) - 1u32;
-    for i in 0..graph.len() {
-        let initial_visit = 1u32 << i as u32;
-        let tm = WastefulSalesman{visit_map: initial_visit, pos: i};
 
-        if let Some((s, _)) = astar(graph, &goal_mask, tm, 0, false, false) {
+    let mut dijkstra = Dijkstra::new(false, false);
+
+    for i in 0..graph.len() {
+        let initial_mask = 1u32 << i as u32;
+
+        let res = dijkstra.run((i, initial_mask), 0i32, |(pos, visit_mask)| {
+            if *visit_mask == goal_mask {
+                Success
+            } else {
+                Continue(graph.edges(*pos).unwrap().filter_map(|(new_pos, distance)| {
+                    let city_mask = 1 << *new_pos as u32;
+
+                    if visit_mask & city_mask == 0 {
+                        Some((-(*distance as i32), 0, (*new_pos, visit_mask | city_mask)))
+                    } else {
+                        None
+                    }
+                }).collect())
+            }
+        });
+
+        if let Some((s, _)) = res {
             if s < min {
                 min = s;
             }
@@ -66,35 +73,6 @@ pub fn part2(graph: &Graph<&[u8], u32>) -> u32 {
     }
 
     -min as u32
-}
-
-#[derive(Hash, Copy, Clone, Eq, PartialEq)]
-struct WastefulSalesman {
-    visit_map: u32,
-    pos: usize,
-}
-
-impl AStarState<Graph<&[u8], u32>, u32, i32> for WastefulSalesman {
-    fn heuristic(&self, _graph: &Graph<&[u8], u32>, _goal: &u32) -> i32 {
-        0
-    }
-
-    fn is_goal(&self, _graph: &Graph<&[u8], u32>, goal: &u32) -> bool {
-        self.visit_map.eq(goal)
-    }
-
-    fn next(&self, graph: &Graph<&[u8], u32>, buffer: &mut Vec<(i32, Self)>) {
-        for (new_pos, cost) in graph.edges(self.pos).unwrap() {
-            let mask = 1 << *new_pos as u32;
-
-            if self.visit_map & mask == 0 {
-                buffer.push((-(*cost as i32), WastefulSalesman{
-                    pos: *new_pos,
-                    visit_map: self.visit_map | mask,
-                }));
-            }
-        }
-    }
 }
 
 pub fn parse(mut input: &[u8]) -> Graph<&[u8], u32> {
