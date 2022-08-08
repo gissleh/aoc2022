@@ -22,6 +22,30 @@ impl<T> Point<T> where T: Roots + Sub<Output=T> + Copy {
     }
 }
 
+impl<T> Point<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
+    pub fn cardinals(&self) -> [Point<T>; 4] {
+        [
+            Point(self.0, self.1 - T::one()),
+            Point(self.0 - T::one(), self.1),
+            Point(self.0 + T::one(), self.1),
+            Point(self.0, self.1 + T::one()),
+        ]
+    }
+
+    pub fn neighbors(&self) -> [Point<T>; 8] {
+        [
+            Point(self.0 - T::one(), self.1 - T::one()),
+            Point(self.0, self.1 - T::one()),
+            Point(self.0 + T::one(), self.1 - T::one()),
+            Point(self.0 - T::one(), self.1),
+            Point(self.0 + T::one(), self.1),
+            Point(self.0 - T::one(), self.1 + T::one()),
+            Point(self.0, self.1 + T::one()),
+            Point(self.0 + T::one(), self.1 + T::one()),
+        ]
+    }
+}
+
 impl<T> Copy for Point<T> where T: Copy {}
 
 impl<T> Clone for Point<T> where T: Clone {

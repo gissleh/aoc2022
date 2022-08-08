@@ -3,6 +3,7 @@ use std::hash::Hash;
 use std::marker::PhantomData;
 use std::ops::Add;
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 
 pub trait AStarState<B, G, C>: Eq + Hash + Clone where C: Ord + Copy + Clone + Add<Output=C> {
     fn heuristic(&self, board: &B, goal: &G) -> C;
@@ -182,6 +183,75 @@ impl<B, G, S> BFS<B, G, S> where S: BFSState<B, G> + BFSExploreState<B, G> {
     }
 }
 
+enum BFS2Result<S, G> {
+    /// Same as continue with an empty vec.
+    DeadEnd,
+    /// Return the main search with this state.
+    Success,
+    /// Continue with these possible steps.
+    Continue(SmallVec<[S; 16]>),
+    /// Log this goal and continue.
+    Found(G, SmallVec<[S; 16]>),
+}
+
+struct BFS2<S, G> where S: Eq + Hash + Clone {
+    queue: VecDeque<(S, u32)>,
+    seen: FxHashSet<S>,
+    goals: SmallVec<[(G, u32); 16]>,
+}
+
+impl<S, G> BFS2<S, G> where S: Eq + Hash + Clone {
+    pub fn run<F>(&mut self, initial_state: S, step: F) -> Option<(S, u32)> where F: Fn(&S) -> BFS2Result<S, G> {
+        self.seen.clear();
+        self.queue.clear();
+        self.goals.clear();
+
+        self.seen.insert(initial_state.clone());
+        self.queue.push_back((initial_state, 0));
+
+        while let Some((current_state, current_steps)) = self.queue.pop_front() {
+            match step(&current_state) {
+                BFS2Result::DeadEnd => {}
+                BFS2Result::Success => {
+                    return Some((current_state, current_steps));
+                }
+                BFS2Result::Found(value, next_steps) => {
+                    self.goals.push((value, current_steps));
+                    self.add_steps(next_steps.into_iter(), current_steps + 1);
+                }
+                BFS2Result::Continue(next_steps) => {
+                    self.add_steps(next_steps.into_iter(), current_steps + 1);
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn found_goals(&self) -> &[(G, u32)] {
+        &self.goals
+    }
+
+    pub fn new() -> BFS2<S, G> {
+        BFS2 {
+            goals: SmallVec::new(),
+            queue: VecDeque::with_capacity(64),
+            seen: FxHashSet::default(),
+        }
+    }
+
+    fn add_steps<I>(&mut self, iter: I, new_step: u32) where I: IntoIterator<Item=S> {
+        for new_state in iter {
+            if self.seen.contains(&new_state) {
+                continue;
+            }
+
+            self.seen.insert(new_state.clone());
+            self.queue.push_back((new_state, new_step));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::geo::Point;
@@ -202,8 +272,6 @@ mod tests {
 
         fn next(&self, _board: &(), buffer: &mut Vec<(i32, Self)>) {
             let Knight(x, y) = *self;
-
-            println!("Checking next for {:?}", self);
 
             buffer.push((1, Knight(x + 1, y + 2)));
             buffer.push((1, Knight(x + 1, y - 2)));
@@ -254,8 +322,6 @@ mod tests {
         fn next(&self, maze: &G, dst: &mut Vec<(usize, Self)>) {
             let Point(x, y) = self.pos;
 
-            println!("Checking {},{} of {},{}", x, y, maze.width(), maze.height());
-
             self.try_direction(maze, Point(x + 1, y), dst);
             self.try_direction(maze, Point(x - 1, y), dst);
             self.try_direction(maze, Point(x, y + 1), dst);
@@ -302,6 +368,64 @@ mod tests {
         assert_eq!(bfs.run(&maze, &b'y', MazeBFS { pos: Point(1, 1) }), None);
 
         bfs.explore(&maze, MazeBFS { pos: Point(1, 1) });
+        assert_eq!(bfs.found_goals(), &[
+            (b'a', 0), (b'z', 10), (b'b', 15), (b'i', 17),
+            (b'r', 20), (b't', 21), (b'x', 24),
+        ]);
+    }
+
+    const BFS2_TABLE: &'static [(u8, Option<u32>)] = &[
+        (b'x', Some(24)),
+        (b'a', Some(0)),
+        (b'b', Some(15)),
+        (b'y', None),
+    ];
+
+    #[test]
+    fn bfs2_maze() {
+        let maze = VecGrid::parse_lines(MAZE_2, b'\n').unwrap();
+        let mut bfs: BFS2<Point<usize>, u8> = BFS2::new();
+
+        for (target, expected) in BFS2_TABLE.iter() {
+            let result = bfs.run(Point(1, 1), |p| {
+                if let Some(c) = maze.get(p) {
+                    if c.eq(target) {
+                        return BFS2Result::Success
+                    }
+
+                    BFS2Result::Continue(p.cardinals().iter().filter(|p| {
+                        maze.get(*p) != Some(&b'#')
+                    }).copied().collect())
+                } else {
+                    BFS2Result::DeadEnd
+                }
+            });
+
+            assert_eq!(result.map(|r| r.1), *expected);
+        }
+    }
+
+    #[test]
+    fn bfs2_maze_goals() {
+        let maze = VecGrid::parse_lines(MAZE_2, b'\n').unwrap();
+        let mut bfs: BFS2<Point<usize>, u8> = BFS2::new();
+
+        bfs.run(Point(1, 1), |p| {
+            if let Some(c) = maze.get(p) {
+                let next_steps = p.cardinals().iter().filter(|p| {
+                    maze.get(*p) != Some(&b'#')
+                }).copied().collect();
+
+                if *c >= b'a' && *c <= b'z' {
+                    BFS2Result::Found(*c, next_steps)
+                } else {
+                    BFS2Result::Continue(next_steps)
+                }
+            } else {
+                BFS2Result::DeadEnd
+            }
+        });
+
         assert_eq!(bfs.found_goals(), &[
             (b'a', 0), (b'z', 10), (b'b', 15), (b'i', 17),
             (b'r', 20), (b't', 21), (b'x', 24),
