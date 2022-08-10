@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn p1_works_on_example() {
-        let bugs = parse(SAMPLE);
+        let bugs = Bugs::parse(SAMPLE);
         let result = part1(&bugs);
 
         assert_eq!(result, 2129920);
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn p2_works_on_example() {
-        let bugs = parse(SAMPLE);
+        let bugs = Bugs::parse(SAMPLE);
         let levels = run_recursive_growth(&bugs, 10);
 
         for i in (0..levels.len()).skip_while(|l| levels[*l].0 == 0) {

@@ -4,7 +4,7 @@ use common::grid2::{FixedGrid, GetterGrid, IterableSliceGrid};
 use common::grid2::VecGrid;
 use common::search::{BFS, BFSResult, Dijkstra, DijkstraResult};
 
-common::day!(parse, part1, part2, 100, 1000, 1000);
+common::day!(parse, part1, part2, 100, 1000, 50);
 
 fn part1(graph: &Graph<u16, (u32, i32)>) -> u32 {
     let aa = graph.find(&AA).unwrap();
