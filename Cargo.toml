@@ -3,6 +3,11 @@ name = "aoc2022"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+2019 = []
+2015 = []
+
 [lib]
 name = "common"
 path = "src/lib.rs"

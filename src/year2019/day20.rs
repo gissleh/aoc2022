@@ -112,14 +112,18 @@ fn parse(data: &[u8]) -> Graph<u16, (u32, i32)> {
         let pos = positions[i];
 
         bfs.run(pos, |p| {
-            let valid_neghbors = p.cardinals().into_iter().filter(|p| {
-                grid.get(p) != Some(&MazeCell::Wall)
+            let valid_neighbours = p.cardinals().into_iter().filter(|p| {
+                if let Some(c) = grid.get(p) {
+                    *c != MazeCell::Wall
+                } else {
+                    false
+                }
             }).collect();
 
             match grid.get(p).unwrap() {
                 MazeCell::Wall => BFSResult::DeadEnd,
-                MazeCell::Ground => BFSResult::Continue(valid_neghbors),
-                MazeCell::Portal(pid) => BFSResult::Found(*pid, valid_neghbors),
+                MazeCell::Ground => BFSResult::Continue(valid_neighbours),
+                MazeCell::Portal(pid) => BFSResult::Found(*pid, valid_neighbours),
             }
         });
 

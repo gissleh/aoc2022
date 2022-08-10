@@ -108,7 +108,7 @@ macro_rules! day {
         pub fn run_many_bench(input: &[u8]) {
             let (input, input_ns) = common::aoc::run_many($parse_runs, || $parse(input));
             let (part1_res, part1_ns) = common::aoc::run_many($part1_runs, || $part1(&input));
-            let (part2_res, part2_ns) = common::aoc::run_many($part1_runs, || $part2(&input));
+            let (part2_res, part2_ns) = common::aoc::run_many($part2_runs, || $part2(&input));
 
             println!("Part 1:\n{}\n", part1_res);
             println!("Part 2:\n{}\n", part2_res);
@@ -122,7 +122,7 @@ macro_rules! day {
         pub fn run_bench_table(label: String, input: &[u8]) {
             let (input, input_ns) = common::aoc::run_many($parse_runs, || $parse(input));
             let (_, part1_ns) = common::aoc::run_many($part1_runs, || $part1(&input));
-            let (_, part2_ns) = common::aoc::run_many($part1_runs, || $part2(&input));
+            let (_, part2_ns) = common::aoc::run_many($part2_runs, || $part2(&input));
 
             println!("{:6} {: >10} {: >10} {: >10}",
                 label,
