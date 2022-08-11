@@ -1,4 +1,4 @@
-use common::intcode::{FixedAndSparseMemory, FixedMemory, Intcode, IntcodeResult, Memory};
+use common::intcode::{FixedMemory, Intcode, IntcodeResult, Memory};
 
 common::day!(parse, part1, part2, 100, 10000, 100);
 

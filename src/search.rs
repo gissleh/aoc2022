@@ -1,4 +1,5 @@
-use std::collections::VecDeque;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, VecDeque};
 use std::hash::Hash;
 use std::ops::Add;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -13,9 +14,24 @@ pub enum DijkstraResult<C, S> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Ou
     Continue(SmallVec<[(C, C, S); 16]>),
 }
 
+#[derive(Clone, Eq, PartialEq)]
+pub struct AdjacentState<S, C>(C, C, S) where C: Eq + Copy + Ord + Add<Output=C>, S: Eq + Clone;
+
+impl<C, S> Ord for AdjacentState<S, C> where C: Eq + Copy + Ord + Add<Output=C>, S: Eq + Clone {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (other.0 + other.1).cmp(&(self.0 + self.1))
+    }
+}
+
+impl<C, S> PartialOrd for AdjacentState<S, C> where C: Eq + Copy + Ord + Add<Output=C>, S: Eq + Clone {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        (other.0 + other.1).partial_cmp(&(self.0 + self.1))
+    }
+}
+
 pub struct Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output=C> {
     seen: FxHashMap<S, C>,
-    unexplored: Vec<(C, C, S)>,
+    unexplored: BinaryHeap<AdjacentState<S, C>>,
     cost_only_increases: bool,
     return_first_success: bool,
 }
@@ -27,13 +43,11 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
         self.unexplored.clear();
 
         let mut lowest: Option<(C, S)> = None;
-        let mut next: (C, S) = (initial_cost, initial_state.clone());
 
+        self.unexplored.push(AdjacentState(initial_cost, initial_cost, initial_state.clone()));
         self.seen.insert(initial_state, initial_cost);
 
-        loop {
-            let (cost, state) = next;
-
+        while let Some(AdjacentState(cost, _, state)) = self.unexplored.pop() {
             match step_function(&state) {
                 DijkstraResult::DeadEnd => {}
                 DijkstraResult::Success => {
@@ -68,7 +82,7 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
                             }
                         }
 
-                        self.unexplored.push((next_cost, step_heuristic, next_state.clone()));
+                        self.unexplored.push(AdjacentState(next_cost, step_heuristic, next_state.clone()));
                         self.seen.insert(next_state.clone(), next_cost);
                     }
                 }
@@ -77,20 +91,6 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
             if self.unexplored.is_empty() {
                 break;
             }
-
-            let mut winner_index = 0usize;
-            let mut lowest_cost = self.unexplored[0].0 + self.unexplored[0].1;
-
-            for (i, (next_cost, next_heuristic, _)) in self.unexplored.iter().enumerate().skip(1) {
-                let estimated_cost = *next_cost + *next_heuristic;
-                if estimated_cost < lowest_cost {
-                    winner_index = i;
-                    lowest_cost = estimated_cost;
-                }
-            }
-
-            let (next_cost, _, next_state) = self.unexplored.swap_remove(winner_index);
-            next = (next_cost, next_state);
         }
 
         lowest
@@ -99,7 +99,7 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
     pub fn new(cost_only_increases: bool, return_first_success: bool) -> Self {
         Self {
             seen: FxHashMap::default(),
-            unexplored: Vec::with_capacity(64),
+            unexplored: BinaryHeap::with_capacity(64),
             cost_only_increases,
             return_first_success,
         }

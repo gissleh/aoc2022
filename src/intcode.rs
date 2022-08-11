@@ -307,7 +307,6 @@ mod tests {
     fn run_io_mout<const S: usize>(prog: [i64; S], mut inputs: &[i64]) -> Vec<i64> {
         let mut ic = Intcode::new(&FixedAndSparseMemory::from_arr(prog));
         let mut res = Vec::with_capacity(8);
-        let mut next = 0;
 
         loop {
             let (r, n) = ic.run_input(inputs);
