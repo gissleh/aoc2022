@@ -1,9 +1,10 @@
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, Mul, Neg, Sub, Shr};
+use arrayvec::ArrayVec;
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
 
-#[derive(Hash)]
+#[derive(Hash, Eq, PartialEq)]
 pub struct Point<T> (pub T, pub T);
 
 impl<T> Display for Point<T> where T: Display {
@@ -93,25 +94,13 @@ impl<T> Add for Point<T> where T: Add<Output=T> {
     }
 }
 
-impl<T> PartialEq for Point<T> where T: PartialEq {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0 && self.1 == other.1
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.0 != other.0 || self.1 != other.1
-    }
-}
-
-impl<T> Eq for Point<T> where T: Eq {}
-
 impl<T> std::fmt::Debug for Point<T> where T: std::fmt::Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Point").field(&self.0).field(&self.1).finish()
     }
 }
 
-
+#[derive(Debug, Eq, PartialEq)]
 pub struct Vertex<T> (pub T, pub T, pub T);
 
 impl<T> Vertex<T> {
@@ -121,6 +110,26 @@ impl<T> Vertex<T> {
     pub fn y(&self) -> &T { &self.1 }
     #[inline]
     pub fn z(&self) -> &T { &self.2 }
+
+    #[inline]
+    pub fn coord(&self, i: usize) -> &T {
+        match i {
+            0 => &self.0,
+            1 => &self.1,
+            2 => &self.2,
+            _ => panic!("invalid coord index {}", i)
+        }
+    }
+
+    #[inline]
+    pub fn coord_mut(&mut self, i: usize) -> &mut T {
+        match i {
+            0 => &mut self.0,
+            1 => &mut self.1,
+            2 => &mut self.2,
+            _ => panic!("invalid coord index {}", i)
+        }
+    }
 }
 
 impl<T> Vertex<T> where T: Roots + Sub<Output=T> + Copy {
@@ -229,7 +238,7 @@ impl<T> Sub for Vertex<T> where T: Sub<Output=T> {
     }
 }
 
-
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Cube<T> (Vertex<T>, Vertex<T>);
 
 impl<T> Cube<T> {
@@ -250,13 +259,14 @@ impl<T> Cube<T> where T: Copy + Sub<Output=T> + Mul<Output=T> {
 impl<T> Cube<T> where T: Ord {
     #[inline]
     pub fn overlaps(&self, other: &Cube<T>) -> bool {
-        (self.min().x() > other.max().x())
+        (self.max().x() > other.min().x())
             && (self.min().x() < other.max().x())
-            && (self.min().y() > other.max().y())
+            && (self.max().y() > other.min().y())
             && (self.min().y() < other.max().y())
-            && (self.min().z() > other.max().z())
+            && (self.max().z() > other.min().z())
             && (self.min().z() < other.max().z())
     }
+
 }
 
 impl<T> Cube<T> where T: Copy + Ord + Sub<Output=T> + One {
@@ -269,6 +279,198 @@ impl<T> Cube<T> where T: Copy + Ord + Sub<Output=T> + One {
     pub fn contained_by(&self, other: &Cube<T>) -> bool {
         let one = Vertex(T::one(), T::one(), T::one());
         self.0.inside_cube(other) && (self.1 - one).inside_cube(other)
+    }
+}
+
+impl<T> Cube<T> where T: Eq + Copy + Clone + Ord {
+    /// subtract returns up to 9 cubes that may result from subtracting `other` with this one.
+    pub fn subtract(self, other: &Self) -> ArrayVec<Self, 9> {
+        if self.overlaps(other) {
+            let mut list = self.split_by(other);
+            list.pop();
+            list
+        } else {
+            self.to_vec9()
+        }
+    }
+
+    fn split_by(self, other: &Self) -> ArrayVec<Self, 9> {
+        if self.overlaps(other) {
+            let mut cubes = ArrayVec::new();
+            let mut middle = self;
+            for i in 0..3 {
+                let slices = middle.slash_twice(i, *other.min().coord(i), *other.max().coord(i));
+                for slice in slices.iter().skip(1) {
+                    if !slice.is_flat() {
+                        cubes.push(*slice);
+                    }
+                }
+                middle = slices[0];
+            }
+
+            if !middle.is_flat() {
+                cubes.push(middle);
+            }
+
+            cubes
+        } else {
+            self.to_vec9()
+        }
+    }
+
+    // slash_twice returns 1-3 cubes. The first will always be the "middle" cube.
+    fn slash_twice(&self, i: usize, c1: T, c2: T) -> ArrayVec<Self, 3> {
+        let (a, b) = self.slash(i, c1);
+        if let Some(b) = b {
+            let (b, c) = b.slash(i, c2);
+            if let Some(c) = c {
+                let mut v = ArrayVec::new();
+                v.push(b);
+                v.push(a);
+                v.push(c);
+                v
+            } else {
+                let mut v = ArrayVec::new();
+                v.push(b);
+                v.push(a);
+                v
+            }
+        } else {
+            let (b, c) = a.slash(i, c2);
+            if let Some(c) = c {
+                let mut v = ArrayVec::new();
+                v.push(b);
+                v.push(c);
+                v
+            } else {
+                self.to_vec3()
+            }
+        }
+    }
+
+    fn slash(&self, i: usize, c: T) -> (Self, Option<Self>) {
+        if c <= *self.min().coord(i) || c >= *self.max().coord(i) {
+            (*self, None)
+        } else {
+            let mut a = *self;
+            let mut b = *self;
+
+            *a.1.coord_mut(i) = c;
+            *b.0.coord_mut(i) = c;
+
+            (a, Some(b))
+        }
+    }
+
+
+    fn is_flat(&self) -> bool {
+        for i in 0..3 {
+            if self.min().coord(i) == self.max().coord(i) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn to_vec9(&self) -> ArrayVec<Self, 9> {
+        let mut list = ArrayVec::new();
+        list.push(*self);
+        list
+    }
+
+    fn to_vec3(&self) -> ArrayVec<Self, 3> {
+        let mut list = ArrayVec::new();
+        list.push(*self);
+        list
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slash_conserves_volume() {
+        let cube = Cube::<i32>(
+            Vertex(-14, -13, -12),
+            Vertex(17, 33, 23),
+        );
+
+        let target = cube.volume();
+
+        for z in -30..30 {
+            let (cube, cube2) = cube.slash(2, z);
+            if let Some(cube2) = cube2 {
+                assert_eq!(cube2.volume() + cube.volume(), target);
+            } else {
+                assert_eq!(cube.volume(), target);
+            }
+        }
+    }
+
+    #[test]
+    fn slash_twice_adjacent() {
+        let c1 = Cube::<i32> (
+            Vertex(10, 10, 10),
+            Vertex(15, 15, 15),
+        );
+
+        let split = c1.slash_twice(0, 15, 32);
+        assert_eq!(split.as_slice(), [
+            Cube::<i32> (
+                Vertex(10, 10, 10),
+                Vertex(15, 15, 15),
+            )
+        ].as_slice());
+
+        let split = c1.slash_twice(0, 0, 10);
+        assert_eq!(split.as_slice(), [
+            Cube::<i32> (
+                Vertex(10, 10, 10),
+                Vertex(15, 15, 15),
+            )
+        ].as_slice());
+    }
+
+    #[test]
+    fn subtract_once_works() {
+        let c1 = Cube::<i32> (
+            Vertex(10, 10, 10),
+            Vertex(13, 13, 13),
+        );
+        let c2 = Cube::<i32> (
+            Vertex(11, 11, 11),
+            Vertex(14, 14, 14),
+        );
+
+        for c in c1.subtract(&c2) {
+            println!("{:?} {}", c, c.volume());
+        }
+
+        assert_eq!(
+            c1.subtract(&c2).iter()
+                .map(|v| v.volume())
+                .sum::<i32>(),
+            19,
+        );
+    }
+
+    #[test]
+    fn subtract_corner() {
+        let c1 = Cube::<i32>(
+            Vertex(11, 11, 11),
+            Vertex(14, 14, 14),
+        );
+        let c2 = Cube::<i32>(
+            Vertex(9, 9, 9),
+            Vertex(12, 12, 12),
+        );
+
+        println!("{:?}", c1.split_by(&c2));
+        println!("{:?}", c2.split_by(&c1));
+
+        assert_eq!(c1.split_by(&c2).len(), 4);
     }
 }
 
