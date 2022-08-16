@@ -9,3 +9,4 @@ pub mod grid2;
 pub mod search;
 pub mod graph;
 pub mod intcode;
+pub mod wfc;

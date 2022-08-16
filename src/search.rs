@@ -151,6 +151,7 @@ impl<S, G> BFS<S, G> where S: Eq + Hash + Clone {
         None
     }
 
+    #[inline]
     pub fn found_goals(&self) -> &[(G, u32)] {
         &self.goals
     }
@@ -163,6 +164,7 @@ impl<S, G> BFS<S, G> where S: Eq + Hash + Clone {
         }
     }
 
+    #[inline]
     fn add_steps<I>(&mut self, iter: I, new_step: u32) where I: IntoIterator<Item=S> {
         for new_state in iter {
             if self.seen.contains(&new_state) {

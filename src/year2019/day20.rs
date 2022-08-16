@@ -106,6 +106,15 @@ fn parse(data: &[u8]) -> Graph<u16, (u32, i32)> {
         *grid.get_mut(&positions[i]).unwrap() = MazeCell::Portal(portal_id);
     }
 
+    #[cfg(test)]
+    grid.print(|v| {
+        match *v {
+            MazeCell::Wall => ('#', None),
+            MazeCell::Ground => ('.', None),
+            MazeCell::Portal(pid) => (':', Some(format_pid(pid))),
+        }
+    });
+
     let mut bfs = BFS::new();
     for i in 0..graph.len() {
         let my_id = *graph.node(i).unwrap();
@@ -160,9 +169,9 @@ fn format_pid(portal_id: u16) -> String {
     let l2 = portal_id % 26;
 
     if portal_id >= OUTER {
-        format!("Outer {}{}", (l1 as u8 + b'A') as char, (l2 as u8 + b'A') as char)
+        format!("O{}{}", (l1 as u8 + b'A') as char, (l2 as u8 + b'A') as char)
     } else {
-        format!("Inner {}{}", (l1 as u8 + b'A') as char, (l2 as u8 + b'A') as char)
+        format!("I{}{}", (l1 as u8 + b'A') as char, (l2 as u8 + b'A') as char)
     }
 }
 
