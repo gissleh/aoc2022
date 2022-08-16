@@ -1,7 +1,20 @@
+use std::fmt::Display;
 use crate::geo::Point;
 
 pub struct ArrayGrid<T, const S: usize, const W: usize> {
     data: [T; S],
+}
+
+impl<T, const S: usize, const W: usize> ClearableGrid for ArrayGrid<T, S, W> where T: Copy + Default {
+    fn clear(&mut self) {
+        self.data.fill(T::default());
+    }
+}
+
+impl<T, const S: usize, const W: usize> FillableGrid<T> for ArrayGrid<T, S, W> where T: Copy {
+    fn fill(&mut self, v: T) {
+        self.data.fill(v);
+    }
 }
 
 impl<T, const S: usize, const W: usize> ArrayGrid<T, S, W> where T: Copy {
@@ -20,11 +33,16 @@ impl<T, const S: usize, const W: usize> ArrayGrid<T, S, W> where T: Copy {
 }
 
 impl<T, const S: usize, const W: usize> ArrayGrid<T, S, W> where T: Default + Copy {
-    pub fn new() -> ArrayGrid<T, S, W> {
+    pub fn new() -> Self {
         assert_eq!(S % W, 0);
-        ArrayGrid {
+        Self {
             data: [Default::default(); S]
         }
+    }
+
+    pub fn from_array(data: [T; S]) -> Self {
+        assert_eq!(S % W, 0);
+        Self { data }
     }
 }
 
@@ -80,10 +98,21 @@ impl<T, const S: usize, const W: usize> RowGrid<T> for ArrayGrid<T, S, W> {
     }
 }
 
-
 pub struct VecGrid<T> {
     data: Vec<T>,
     width: usize,
+}
+
+impl<T> FillableGrid<T> for VecGrid<T> where T: Copy {
+    fn fill(&mut self, v: T) {
+        self.data.fill(v);
+    }
+}
+
+impl<T> ClearableGrid for VecGrid<T> where T: Default + Copy {
+    fn clear(&mut self) {
+        self.data.fill(T::default());
+    }
 }
 
 impl<T> VecGrid<T> {
@@ -91,7 +120,7 @@ impl<T> VecGrid<T> {
         assert!(data.len() >= width);
         assert_eq!(data.len() % width, 0);
 
-        VecGrid{data, width}
+        VecGrid { data, width }
     }
 }
 
@@ -101,7 +130,7 @@ impl<T> VecGrid<T> where T: Eq + Copy {
         let data: Vec<T> = raw.iter().filter(|v| **v != newline).copied().collect();
 
         if data.len() % width == 0 {
-            Some(VecGrid{data, width})
+            Some(VecGrid { data, width })
         } else {
             None
         }
@@ -111,13 +140,13 @@ impl<T> VecGrid<T> where T: Eq + Copy {
 
 impl<T> VecGrid<T> where T: Copy {
     pub fn new_with(width: usize, height: usize, v: T) -> Self {
-        VecGrid{data: vec![v; width * height], width}
+        VecGrid { data: vec![v; width * height], width }
     }
 }
 
 impl<T> VecGrid<T> where T: Copy + Default {
     pub fn new(width: usize, height: usize) -> Self {
-        VecGrid{data: vec![Default::default(); width * height], width}
+        VecGrid { data: vec![Default::default(); width * height], width }
     }
 }
 
@@ -125,7 +154,6 @@ impl<T> FixedGrid for VecGrid<T> {
     fn width(&self) -> usize {
         self.width
     }
-
     fn height(&self) -> usize {
         self.data.len() / self.width
     }
@@ -170,7 +198,7 @@ impl<T> RowGrid<T> for VecGrid<T> {
 
 impl<T> IterableSliceGrid<T> for VecGrid<T> {
     fn cells(&self) -> SliceIter<'_, T> {
-        return SliceIter::new(&self.data, self.width)
+        return SliceIter::new(&self.data, self.width);
     }
 }
 
@@ -192,6 +220,46 @@ pub trait RowGrid<T> {
 pub trait IterableSliceGrid<T> {
     /// Cells iterates over all grid cells with the positions
     fn cells(&self) -> SliceIter<'_, T>;
+
+    /// Print a grid based on the callback. The second argument is
+    /// for side-data that will be appended at the end of a line, like
+    /// the gnomes and elves in Beverage Bandit.
+    fn print<F, D1, D2>(&self, f: F)
+        where F: Fn(&T) -> (D1, Option<D2>),
+              D1: Display,
+              D2: Display {
+        let mut vec: Vec<D2> = Vec::new();
+
+        for (Point(x, y), v) in self.cells() {
+            if x == 0 && y != 0 {
+                for item in vec.drain(0..) {
+                    print!(" {}", item);
+                }
+
+                println!();
+            }
+
+            let (d1, d2) = f(v);
+
+            print!("{}", d1);
+            if let Some(d2) = d2 {
+                vec.push(d2);
+            }
+        }
+
+        for item in vec.drain(0..) {
+            print!("{} ", item);
+        }
+        println!();
+    }
+}
+
+pub trait ClearableGrid {
+    fn clear(&mut self);
+}
+
+pub trait FillableGrid<T> where T: Copy {
+    fn fill(&mut self, v: T);
 }
 
 pub struct SliceIter<'a, T> {

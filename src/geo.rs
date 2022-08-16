@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, Mul, Neg, Sub, Shr};
+use std::ops::{Add, Mul, Neg, Sub, Shr, Div};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
 
@@ -82,6 +82,14 @@ impl<T> Mul for Point<T> where T: Mul<Output=T> {
 
     fn mul(self, rhs: Self) -> Self::Output {
         Point(self.0 * rhs.0, self.1 * rhs.1)
+    }
+}
+
+impl<T> Div for Point<T> where T: Div<Output=T> {
+    type Output = Point<T>;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        Point(self.0 / rhs.0, self.1 / rhs.1)
     }
 }
 
