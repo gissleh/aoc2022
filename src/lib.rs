@@ -10,3 +10,4 @@ pub mod search;
 pub mod graph;
 pub mod intcode;
 pub mod wfc;
+pub mod parse2;
