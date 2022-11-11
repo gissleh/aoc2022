@@ -280,8 +280,8 @@ pub mod tests {
     #[test]
     fn test_map() {
         let list: Vec<Point<i32>> = map(
-            b"<12, -16>\n<19, 23>\n<-112, 12>\n",
-            |input| point(int::<i32>)(input).and_discard(line),
+            b"<12, -16>\n<19, 23>\n<-112, 12>",
+            |input| point(int::<i32>)(input).and_discard(skip_byte::<b'\n'>),
         ).collect();
 
         assert_eq!(list, vec![Point(12i32, -16i32), Point(19i32, 23i32), Point(-112i32, 12i32)]);
