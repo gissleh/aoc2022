@@ -8,6 +8,24 @@ pub enum ParseResult<'a, T> {
     Bad,
 }
 
+impl<'a, T> From<Option<(T, &'a [u8])>> for ParseResult<'a, T> {
+    fn from(src: Option<(T, &'a [u8])>) -> Self {
+        match src {
+            Some((t, input)) => Self::Good(t, input),
+            None => Self::Bad,
+        }
+    }
+}
+
+impl<'a, T> Into<Option<T>> for ParseResult<'a, T> {
+    fn into(self) -> Option<T> {
+        match self {
+            Self::Good(v, _) => Some(v),
+            Self::Bad => None,
+        }
+    }
+}
+
 impl<'a, T> ParseResult<'a, T> {
     pub fn or<F>(self, f: F) -> Self where F: FnOnce() -> Self {
         if let Self::Bad = self {
@@ -47,13 +65,25 @@ impl<'a, T> ParseResult<'a, T> {
         ParseResult::<'a, T2>::Bad
     }
 
-
     pub fn map<T2, F>(self, f: F) -> ParseResult<'a, T2> where F: FnOnce(T) -> T2 {
         if let Self::Good(t1, input) = self {
             ParseResult::<'a, T2>::Good(f(t1), input)
         } else {
             ParseResult::<'a, T2>::Bad
         }
+    }
+}
+
+pub fn line(input: &[u8]) -> ParseResult<'_, &[u8]> {
+    if input.len() == 0 {
+        return ParseResult::Bad;
+    }
+
+    let line_len = input.iter().take_while(|v| **v != b'\n').count();
+    if line_len == input.len() {
+        ParseResult::Good(&input[..line_len], &input[line_len..])
+    } else {
+        ParseResult::Good(&input[..line_len], &input[line_len + 1..])
     }
 }
 
@@ -71,6 +101,11 @@ pub fn skip_byte<const P: u8>(input: &[u8]) -> ParseResult<'_, bool> {
     } else {
         ParseResult::Good(false, input)
     }
+}
+
+pub fn skip_all_bytes<const P: u8>(input: &[u8]) -> ParseResult<'_, usize> {
+    let count = input.iter().take_while(|v| P.eq(*v)).count();
+    ParseResult::Good(count, &input[count..])
 }
 
 pub fn expect_bytes<'i, 'p>(pred: &'p [u8]) -> impl Fn(&'i [u8]) -> ParseResult<'i, &'i [u8]> + 'p {
@@ -174,7 +209,7 @@ pub fn point<T, F>(term: F) -> impl Fn(&[u8]) -> ParseResult<'_, Point<T>> where
     move |input| skip_byte::<b'<'>(input)
         .and_instead(term)
         .and_discard(expect_byte::<b','>)
-        .and_discard(skip_byte::<b' '>)
+        .and_discard(skip_all_bytes::<b' '>)
         .and(term)
         .and_discard(skip_byte::<b'>'>)
         .map(|(x, y)| Point(x, y))
@@ -184,13 +219,38 @@ pub fn vertex<T, F>(term: F) -> impl Fn(&[u8]) -> ParseResult<'_, Vertex<T>> whe
     move |input| skip_byte::<b'<'>(input)
         .and_instead(term)
         .and_discard(expect_byte::<b','>)
-        .and_discard(skip_byte::<b' '>)
+        .and_discard(skip_all_bytes::<b' '>)
         .and(term)
         .and_discard(expect_byte::<b','>)
-        .and_discard(skip_byte::<b' '>)
+        .and_discard(skip_all_bytes::<b' '>)
         .and(term)
         .and_discard(skip_byte::<b'>'>)
         .map(|((x, y), z)| Vertex(x, y, z))
+}
+
+pub struct Map<'a, T, F> {
+    input: &'a [u8],
+    f: F,
+    spooky_ghost: std::marker::PhantomData<T>,
+}
+
+impl<'a, T, F> Iterator for Map<'a, T, F> where F: Fn(&'a [u8]) -> ParseResult<'a, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let ParseResult::Good(value, new_input) = (self.f)(self.input) {
+            self.input = new_input;
+
+            Some(value)
+        } else {
+            None
+        }
+    }
+}
+
+pub fn map<'a, T, F>(input: &'a [u8], f: F) -> Map<'a, T, F>
+    where F: Fn(&'a [u8]) -> ParseResult<'a, T> {
+    Map { input, f, spooky_ghost: std::marker::PhantomData }
 }
 
 #[cfg(test)]
@@ -204,5 +264,26 @@ pub mod tests {
         assert_eq!(point(int::<i32>)(b"bad stuff"), ParseResult::Bad);
         assert_eq!(point(int::<i32>)(b"<four, nine>"), ParseResult::Bad);
         assert_eq!(point(int::<i32>)(b"<64.2, 112.23>"), ParseResult::Bad);
+        assert_eq!(point(int::<i32>)(b"<-117,  16>"), ParseResult::Good(Point(-117i32, 16i32), b""));
+    }
+
+    #[test]
+    fn test_parse_vertex() {
+        assert_eq!(vertex(uint::<u32>)(b"<18,15,13>"), ParseResult::Good(Vertex(18u32, 15u32, 13u32), b""));
+        assert_eq!(vertex(int::<i32>)(b"432, -12, 99912stuff"), ParseResult::Good(Vertex(432i32, -12i32, 99912i32), b"stuff"));
+        assert_eq!(vertex(int::<i32>)(b"bad stuff, but in 3d"), ParseResult::Bad);
+        assert_eq!(vertex(int::<i32>)(b"<four, nine, six>"), ParseResult::Bad);
+        assert_eq!(vertex(int::<i32>)(b"<64.2, 112.23, 119.97>"), ParseResult::Bad);
+        assert_eq!(vertex(int::<i32>)(b"<-117,  16,   189>"), ParseResult::Good(Vertex(-117i32, 16i32, 189i32), b""));
+    }
+
+    #[test]
+    fn test_map() {
+        let list: Vec<Point<i32>> = map(
+            b"<12, -16>\n<19, 23>\n<-112, 12>\n",
+            |input| point(int::<i32>)(input).and_discard(line),
+        ).collect();
+
+        assert_eq!(list, vec![Point(12i32, -16i32), Point(19i32, 23i32), Point(-112i32, 12i32)]);
     }
 }
