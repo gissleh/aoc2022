@@ -9,6 +9,7 @@ pub mod day08;
 pub mod day09;
 pub mod day10;
 pub mod day12;
+pub mod day18;
 
 pub fn register_days() {
     common::register_day!(2015, 1,  day01);
@@ -22,4 +23,5 @@ pub fn register_days() {
     common::register_day!(2015, 9,  day09);
     common::register_day!(2015, 10, day10);
     common::register_day!(2015, 12, day12);
+    common::register_day!(2015, 18, day18);
 }

@@ -1,4 +1,6 @@
 #![feature(assert_matches)]
+#![feature(option_result_contains)]
+#![feature(step_trait)]
 
 pub mod aoc;
 pub mod parse;

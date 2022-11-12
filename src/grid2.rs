@@ -1,8 +1,67 @@
 use std::fmt::Display;
+use std::ops::Add;
+use num::traits::WrappingAdd;
 use crate::geo::Point;
+
+pub const NEIGHBORS: &'static [Point<usize>; 8] = &[
+    Point(usize::MAX, usize::MAX),
+    Point(0, usize::MAX),
+    Point(1, usize::MAX),
+    Point(usize::MAX, 0),
+    Point(1, 0),
+    Point(usize::MAX, 1),
+    Point(0, 1),
+    Point(1, 1),
+];
 
 pub struct ArrayGrid<T, const S: usize, const W: usize> {
     data: [T; S],
+}
+
+impl<T, const S: usize, const W: usize> Clone for ArrayGrid<T, S, W> where T: Clone {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+        }
+    }
+}
+
+impl<T, const S: usize, const W: usize> CountableGrid<T> for ArrayGrid<T, S, W> where T: Eq {
+    fn count_occurrences_of(&self, pred: &T) -> usize {
+        self.data.iter().filter(|v| pred.eq(*v)).count()
+    }
+
+    fn count_occurrences_where<F>(&self, pred: F) -> usize where F: Fn(&T) -> bool {
+        self.data.iter().filter(|v| pred(*v)).count()
+    }
+}
+
+impl<T, const S: usize, const W: usize> NeighborCountGrid<T> for ArrayGrid<T, S, W>  where T: Eq + WrappingAdd + Add<Output=T> {
+    fn count_neighbors(&self, pos: &Point<usize>, pred: &T) -> usize {
+        let mut count = 0;
+        for n in NEIGHBORS.iter() {
+            let curr = pos.wrapping_add(n);
+            if self.get(&curr).contains(&pred) {
+                count += 1;
+            }
+        }
+
+        count
+    }
+
+    fn count_neighbors_where<F>(&self, pos: &Point<usize>, pred: F) -> usize where F: Fn(&T) -> bool {
+        let mut count = 0usize;
+        for n in NEIGHBORS.iter() {
+            let curr = pos.wrapping_add(n);
+            if let Some(v) = self.get(&curr) {
+                if pred(v) {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
 }
 
 impl<T, const S: usize, const W: usize> ClearableGrid for ArrayGrid<T, S, W> where T: Copy + Default {
@@ -215,6 +274,16 @@ pub trait GetterGrid<T> {
 pub trait RowGrid<T> {
     fn row(&self, y: usize) -> Option<&[T]>;
     fn row_mut(&mut self, y: usize) -> Option<&mut [T]>;
+}
+
+pub trait NeighborCountGrid<T> {
+    fn count_neighbors(&self, pos: &Point<usize>, pred: &T) -> usize;
+    fn count_neighbors_where<F>(&self, pos: &Point<usize>, pred: F) -> usize where F: Fn(&T) -> bool;
+}
+
+pub trait CountableGrid<T> {
+    fn count_occurrences_of(&self, pred: &T) -> usize;
+    fn count_occurrences_where<F>(&self, pred: F) -> usize where F: Fn(&T) -> bool;
 }
 
 pub trait IterableSliceGrid<T> {

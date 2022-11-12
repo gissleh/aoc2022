@@ -1,4 +1,5 @@
 #![feature(array_windows)]
+#![feature(option_result_contains)]
 
 #[cfg(feature = "2015")]
 pub mod year2015;

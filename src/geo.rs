@@ -1,11 +1,19 @@
 use std::fmt::{Display, Formatter};
+use std::iter::Step;
 use arrayvec::ArrayVec;
 use std::ops::{Add, Mul, Neg, Sub, Shr, Div};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
+use num::traits::WrappingAdd;
 
 #[derive(Hash, Eq, PartialEq)]
 pub struct Point<T> (pub T, pub T);
+
+impl<T> WrappingAdd for Point<T> where T: WrappingAdd + Add<Output=T> {
+    fn wrapping_add(&self, v: &Self) -> Self {
+        Point(self.0.wrapping_add(&v.0), self.1.wrapping_add(&v.1))
+    }
+}
 
 impl<T> Display for Point<T> where T: Display {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -18,6 +26,13 @@ impl<T> Point<T> {
     pub fn x(&self) -> &T { &self.0 }
     #[inline]
     pub fn y(&self) -> &T { &self.1 }
+}
+
+impl<T> Point<T> where T: Ord + PartialOrd + Zero + Add + Step + Copy {
+    #[inline]
+    pub fn range(w: T, h: T) -> impl Iterator<Item=Self> {
+        (T::zero()..w).flat_map(move |x| (T::zero()..h).map(move |y| Point(x, y)))
+    }
 }
 
 impl<T> Point<T> where T: Roots + Sub<Output=T> + Copy {
@@ -274,7 +289,6 @@ impl<T> Cube<T> where T: Ord {
             && (self.max().z() > other.min().z())
             && (self.min().z() < other.max().z())
     }
-
 }
 
 impl<T> Cube<T> where T: Copy + Ord + Sub<Output=T> + One {
@@ -419,14 +433,14 @@ mod tests {
 
     #[test]
     fn slash_twice_adjacent() {
-        let c1 = Cube::<i32> (
+        let c1 = Cube::<i32>(
             Vertex(10, 10, 10),
             Vertex(15, 15, 15),
         );
 
         let split = c1.slash_twice(0, 15, 32);
         assert_eq!(split.as_slice(), [
-            Cube::<i32> (
+            Cube::<i32>(
                 Vertex(10, 10, 10),
                 Vertex(15, 15, 15),
             )
@@ -434,7 +448,7 @@ mod tests {
 
         let split = c1.slash_twice(0, 0, 10);
         assert_eq!(split.as_slice(), [
-            Cube::<i32> (
+            Cube::<i32>(
                 Vertex(10, 10, 10),
                 Vertex(15, 15, 15),
             )
@@ -443,11 +457,11 @@ mod tests {
 
     #[test]
     fn subtract_once_works() {
-        let c1 = Cube::<i32> (
+        let c1 = Cube::<i32>(
             Vertex(10, 10, 10),
             Vertex(13, 13, 13),
         );
-        let c2 = Cube::<i32> (
+        let c2 = Cube::<i32>(
             Vertex(11, 11, 11),
             Vertex(14, 14, 14),
         );
