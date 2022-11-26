@@ -27,6 +27,13 @@ impl<'a, T> Into<Option<T>> for ParseResult<'a, T> {
 }
 
 impl<'a, T> ParseResult<'a, T> {
+    pub fn unwrap(self) -> T {
+        match self {
+            Self::Good(t, _) => t,
+            Self::Bad => panic!("unwrap on a bad parse result"),
+        }
+    }
+
     pub fn or<F>(self, f: F) -> Self where F: FnOnce() -> Self {
         if let Self::Bad = self {
             f()
