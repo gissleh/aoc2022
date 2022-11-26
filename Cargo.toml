@@ -6,6 +6,7 @@ edition = "2021"
 [features]
 default = []
 2019 = []
+2018 = []
 2015 = []
 
 [lib]

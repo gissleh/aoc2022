@@ -157,6 +157,7 @@ impl<T, const S: usize, const W: usize> RowGrid<T> for ArrayGrid<T, S, W> {
     }
 }
 
+#[derive(Clone)]
 pub struct VecGrid<T> {
     data: Vec<T>,
     width: usize,

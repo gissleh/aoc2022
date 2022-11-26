@@ -5,85 +5,98 @@ use crate::geo::{Point, Vertex};
 #[derive(Eq, PartialEq, Debug)]
 pub enum ParseResult<'a, T> {
     Good(T, &'a [u8]),
-    Bad,
-}
-
-impl<'a, T> From<Option<(T, &'a [u8])>> for ParseResult<'a, T> {
-    fn from(src: Option<(T, &'a [u8])>) -> Self {
-        match src {
-            Some((t, input)) => Self::Good(t, input),
-            None => Self::Bad,
-        }
-    }
+    Bad(&'a [u8]),
 }
 
 impl<'a, T> Into<Option<T>> for ParseResult<'a, T> {
     fn into(self) -> Option<T> {
         match self {
             Self::Good(v, _) => Some(v),
-            Self::Bad => None,
+            Self::Bad(_) => None,
         }
     }
 }
 
 impl<'a, T> ParseResult<'a, T> {
-    pub fn unwrap(self) -> T {
+    pub fn is_good(&self) -> bool {
         match self {
-            Self::Good(t, _) => t,
-            Self::Bad => panic!("unwrap on a bad parse result"),
+            Self::Good(_, _) => true,
+            Self::Bad(_) => false,
         }
     }
 
-    pub fn or<F>(self, f: F) -> Self where F: FnOnce() -> Self {
-        if let Self::Bad = self {
-            f()
+    pub fn is_bad(&self) -> bool {
+        match self {
+            Self::Good(_, _) => false,
+            Self::Bad(_) => true,
+        }
+    }
+
+    pub fn unwrap(self) -> T {
+        match self {
+            Self::Good(t, _) => t,
+            Self::Bad(_) => panic!("unwrap on a bad parse result"),
+        }
+    }
+
+    pub fn or<F>(self, f: F) -> Self where F: FnOnce(&'a [u8]) -> ParseResult<'a, T> {
+        if let Self::Bad(input) = self {
+            f(input)
         } else {
             self
         }
     }
 
     pub fn and<T2, F>(self, f: F) -> ParseResult<'a, (T, T2)> where F: FnOnce(&'a [u8]) -> ParseResult<'a, T2> {
-        if let Self::Good(t1, input) = self {
-            if let ParseResult::<'a, T2>::Good(t2, input) = f(input) {
-                return ParseResult::<'a, (T, T2)>::Good((t1, t2), input);
+        match self {
+            Self::Good(t1, input) => {
+                return if let ParseResult::<'a, T2>::Good(t2, input) = f(input) {
+                    ParseResult::<'a, (T, T2)>::Good((t1, t2), input)
+                } else {
+                    ParseResult::<'a, (T, T2)>::Bad(input)
+                };
             }
+            Self::Bad(input) => ParseResult::<'a, (T, T2)>::Bad(input)
         }
-
-        ParseResult::<'a, (T, T2)>::Bad
     }
 
     pub fn and_discard<T2, F>(self, f: F) -> Self where F: FnOnce(&'a [u8]) -> ParseResult<'a, T2> {
-        if let Self::Good(t1, input) = self {
-            if let ParseResult::<'a, T2>::Good(_, input) = f(input) {
-                return Self::Good(t1, input);
+        match self {
+            Self::Good(t1, input) => {
+                return if let ParseResult::<'a, T2>::Good(_, input) = f(input) {
+                    Self::Good(t1, input)
+                } else {
+                    Self::Bad(input)
+                };
             }
+            v => v
         }
-
-        Self::Bad
     }
 
     pub fn and_instead<T2, F>(self, f: F) -> ParseResult<'a, T2> where F: FnOnce(&'a [u8]) -> ParseResult<'a, T2> {
-        if let Self::Good(_, input) = self {
-            if let ParseResult::<'a, T2>::Good(t2, input) = f(input) {
-                return ParseResult::<'a, T2>::Good(t2, input);
+        match self {
+            Self::Good(_, input) => {
+                return if let ParseResult::<'a, T2>::Good(t2, input) = f(input) {
+                    return ParseResult::<'a, T2>::Good(t2, input);
+                } else {
+                    ParseResult::<'a, T2>::Bad(input)
+                };
             }
+            Self::Bad(input) => ParseResult::<'a, T2>::Bad(input)
         }
-
-        ParseResult::<'a, T2>::Bad
     }
 
     pub fn map<T2, F>(self, f: F) -> ParseResult<'a, T2> where F: FnOnce(T) -> T2 {
-        if let Self::Good(t1, input) = self {
-            ParseResult::<'a, T2>::Good(f(t1), input)
-        } else {
-            ParseResult::<'a, T2>::Bad
+        match self {
+            Self::Good(t1, input) => ParseResult::<'a, T2>::Good(f(t1), input),
+            Self::Bad(input) => ParseResult::<'a, T2>::Bad(input)
         }
     }
 }
 
 pub fn line(input: &[u8]) -> ParseResult<'_, &[u8]> {
     if input.len() == 0 {
-        return ParseResult::Bad;
+        return ParseResult::Bad(input);
     }
 
     let line_len = input.iter().take_while(|v| **v != b'\n').count();
@@ -94,11 +107,19 @@ pub fn line(input: &[u8]) -> ParseResult<'_, &[u8]> {
     }
 }
 
+pub fn n_bytes<const N: usize>(input: &[u8]) -> ParseResult<'_, &[u8]> {
+    if input.len() >= N {
+        ParseResult::Good(&input[..N], &input[N..])
+    } else {
+        ParseResult::Bad(input)
+    }
+}
+
 pub fn expect_byte<const P: u8>(input: &[u8]) -> ParseResult<'_, u8> {
     if input.first() == Some(&P) {
         ParseResult::Good(P, &input[1..])
     } else {
-        ParseResult::Bad
+        ParseResult::Bad(input)
     }
 }
 
@@ -110,6 +131,7 @@ pub fn skip_byte<const P: u8>(input: &[u8]) -> ParseResult<'_, bool> {
     }
 }
 
+
 pub fn skip_all_bytes<const P: u8>(input: &[u8]) -> ParseResult<'_, usize> {
     let count = input.iter().take_while(|v| P.eq(*v)).count();
     ParseResult::Good(count, &input[count..])
@@ -119,7 +141,7 @@ pub fn expect_bytes<'i, 'p>(pred: &'p [u8]) -> impl Fn(&'i [u8]) -> ParseResult<
     |input| if input.starts_with(pred) {
         ParseResult::Good(&input[..pred.len()], &input[pred.len()..])
     } else {
-        ParseResult::Bad
+        ParseResult::Bad(input)
     }
 }
 
@@ -129,10 +151,10 @@ pub fn hex_digit(input: &[u8]) -> ParseResult<u8> {
             b'0'..=b'9' => ParseResult::Good(*v - b'0', &input[1..]),
             b'a'..=b'f' => ParseResult::Good((*v - b'a') + 10, &input[1..]),
             b'A'..=b'F' => ParseResult::Good((*v - b'A') + 10, &input[1..]),
-            _ => ParseResult::Bad,
+            _ => ParseResult::Bad(input),
         }
     } else {
-        ParseResult::Bad
+        ParseResult::Bad(input)
     }
 }
 
@@ -140,12 +162,12 @@ pub fn hex_byte(input: &[u8]) -> ParseResult<u8> {
     hex_digit(input)
         .and(hex_digit)
         .map(|(d1, d2)| d1 * 16 + d2)
-        .or(|| hex_digit(input))
+        .or(hex_digit)
 }
 
 pub fn int<T: Integer + Copy + From<u8> + Neg<Output=T>>(input: &[u8]) -> ParseResult<'_, T> {
     if input.is_empty() {
-        return ParseResult::Bad;
+        return ParseResult::Bad(input);
     }
 
     let mut sum = T::zero();
@@ -168,7 +190,7 @@ pub fn int<T: Integer + Copy + From<u8> + Neg<Output=T>>(input: &[u8]) -> ParseR
                     }
                     ParseResult::Good(sum, &input[i..])
                 } else {
-                    ParseResult::Bad
+                    ParseResult::Bad(input)
                 };
             }
         }
@@ -183,7 +205,7 @@ pub fn int<T: Integer + Copy + From<u8> + Neg<Output=T>>(input: &[u8]) -> ParseR
 
 pub fn uint<T: Integer + Copy + From<u8>>(input: &[u8]) -> ParseResult<'_, T> {
     if input.is_empty() {
-        return ParseResult::Bad;
+        return ParseResult::Bad(input);
     }
 
     let mut sum = T::zero();
@@ -199,7 +221,7 @@ pub fn uint<T: Integer + Copy + From<u8>>(input: &[u8]) -> ParseResult<'_, T> {
                 return if i > 0 {
                     ParseResult::Good(sum, &input[i..])
                 } else {
-                    ParseResult::Bad
+                    ParseResult::Bad(input)
                 };
             }
         }
@@ -268,9 +290,9 @@ pub mod tests {
     fn test_parse_point() {
         assert_eq!(point(uint::<u32>)(b"<0,14>"), ParseResult::Good(Point(0u32, 14u32), b""));
         assert_eq!(point(int::<i32>)(b"432, -12stuff"), ParseResult::Good(Point(432i32, -12i32), b"stuff"));
-        assert_eq!(point(int::<i32>)(b"bad stuff"), ParseResult::Bad);
-        assert_eq!(point(int::<i32>)(b"<four, nine>"), ParseResult::Bad);
-        assert_eq!(point(int::<i32>)(b"<64.2, 112.23>"), ParseResult::Bad);
+        assert!(point(int::<i32>)(b"bad stuff").is_bad());
+        assert!(point(int::<i32>)(b"<four, nine>").is_bad());
+        assert!(point(int::<i32>)(b"<64.2, 112.23>").is_bad());
         assert_eq!(point(int::<i32>)(b"<-117,  16>"), ParseResult::Good(Point(-117i32, 16i32), b""));
     }
 
@@ -278,9 +300,9 @@ pub mod tests {
     fn test_parse_vertex() {
         assert_eq!(vertex(uint::<u32>)(b"<18,15,13>"), ParseResult::Good(Vertex(18u32, 15u32, 13u32), b""));
         assert_eq!(vertex(int::<i32>)(b"432, -12, 99912stuff"), ParseResult::Good(Vertex(432i32, -12i32, 99912i32), b"stuff"));
-        assert_eq!(vertex(int::<i32>)(b"bad stuff, but in 3d"), ParseResult::Bad);
-        assert_eq!(vertex(int::<i32>)(b"<four, nine, six>"), ParseResult::Bad);
-        assert_eq!(vertex(int::<i32>)(b"<64.2, 112.23, 119.97>"), ParseResult::Bad);
+        assert!(vertex(int::<i32>)(b"bad stuff, but in 3d").is_bad());
+        assert!(vertex(int::<i32>)(b"<four, nine, six>").is_bad());
+        assert!(vertex(int::<i32>)(b"<64.2, 112.23, 119.97>").is_bad());
         assert_eq!(vertex(int::<i32>)(b"<-117,  16,   189>"), ParseResult::Good(Vertex(-117i32, 16i32, 189i32), b""));
     }
 

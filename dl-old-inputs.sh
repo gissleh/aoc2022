@@ -8,7 +8,7 @@ CURL="curl -H 'authority: adventofcode.com' -H 'dnt: 1' -H 'user-agent: Mozilla/
 
 mkdir -p input/$1/
 
-if [ ! -f "./input/year$1-day$2.txt" ]; then
+if [ ! -f "./input/$1/day$2.txt" ]; then
   nopad=${2##+(0)}
   echo "Getting year$1 day$2 input..."
   echo $CURL "https://adventofcode.com/$1/day/$nopad/input" -o "./input/$1/day$2.txt" | bash
