@@ -203,13 +203,11 @@ pub trait Memory: Clone {
 }
 
 #[derive(Clone)]
-pub struct FixedMemory<const S: usize> {
-    data: [i64; S],
-}
+pub struct FixedMemory<const S: usize> (pub [i64; S]);
 
 impl<const S: usize> FixedMemory<S> {
     pub fn from_arr(data: [i64; S]) -> Self {
-        Self { data }
+        Self(data)
     }
 
     pub fn parse(mut input: &[u8]) -> Self {
@@ -227,51 +225,48 @@ impl<const S: usize> FixedMemory<S> {
 
 impl<const S: usize> Memory for FixedMemory<S> {
     fn reset(&mut self, original: &Self) {
-        self.data = original.data;
+        self.0 = original.0;
     }
 
     fn set(&mut self, i: usize, v: i64) {
-        self.data[i] = v;
+        self.0[i] = v;
     }
 
     fn get(&self, i: usize) -> i64 {
-        self.data[i]
+        self.0[i]
     }
 }
 
 #[derive(Clone)]
-pub struct FixedAndSparseMemory<const S: usize> {
-    data: [i64; S],
-    extras: Vec<(usize, i64)>,
-}
+pub struct FixedAndSparseMemory<const S: usize> (pub [i64; S], pub Vec<(usize, i64)>);
 
 impl<const S: usize> Memory for FixedAndSparseMemory<S> {
     fn reset(&mut self, original: &Self) {
-        self.extras.clear();
-        self.data = original.data;
+        self.1.clear();
+        self.0 = original.0;
 
-        if !original.extras.is_empty() {
-            self.extras.extend_from_slice(&original.extras);
+        if !original.1.is_empty() {
+            self.1.extend_from_slice(&original.1);
         }
     }
 
     fn set(&mut self, i: usize, v: i64) {
         if i < S {
-            self.data[i] = v;
+            self.0[i] = v;
         } else {
-            if let Some(found_index) = self.extras.iter().position(|(i2, _)| *i2 == i) {
-                self.extras[found_index].1 = v;
+            if let Some(found_index) = self.1.iter().position(|(i2, _)| *i2 == i) {
+                self.1[found_index].1 = v;
             } else {
-                self.extras.push((i, v));
+                self.1.push((i, v));
             }
         }
     }
 
     fn get(&self, i: usize) -> i64 {
         if i < S {
-            return self.data[i];
+            return self.0[i];
         } else {
-            if let Some((_, v)) = self.extras.iter().find(|(i2, _)| *i2 == i) {
+            if let Some((_, v)) = self.1.iter().find(|(i2, _)| *i2 == i) {
                 *v
             } else {
                 0
@@ -282,13 +277,13 @@ impl<const S: usize> Memory for FixedAndSparseMemory<S> {
 
 impl<const S: usize> FixedAndSparseMemory<S> {
     pub fn from_arr(data: [i64; S]) -> Self {
-        Self { data, extras: Vec::new() }
+        Self(data, Vec::new())
     }
 
     pub fn parse(input: &[u8]) -> Self {
         let fm = FixedMemory::parse(input);
 
-        Self { data: fm.data, extras: Vec::new() }
+        Self(fm.0, Vec::new())
     }
 }
 
@@ -319,7 +314,7 @@ mod tests {
             }
         }
 
-        for (e, v) in ic.memory.extras {
+        for (e, v) in ic.memory.1 {
             println!("Extra [{}] = {}", e, v);
         }
 
@@ -383,7 +378,7 @@ mod tests {
 
     const D9_QUINE: [i64; 16] = [109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99];
     const D9_16DIGITS: [i64; 8] = [1102, 34915192, 34915192, 7, 4, 7, 99, 0];
-    const D9_BIGBOI: [i64; 3] = [104,1125899906842624,99];
+    const D9_BIGBOI: [i64; 3] = [104, 1125899906842624, 99];
 
     #[test]
     fn d9_examples() {
@@ -392,7 +387,7 @@ mod tests {
         assert_eq!(run_io(D9_BIGBOI, &[]), IntcodeResult::Output(1125899906842624));
     }
 
-    const MISC_FIB: [i64; 141] = [109,147,3,144,1001,144,0,143,21001,143,0,0,109,1,21101,23,0,0,109,1,1106,0,28,109,-1,4,144,99,1201,-2,0,144,21001,144,0,0,109,1,1101,2,0,144,109,-1,1201,0,0,146,7,146,144,144,1006,144,64,1101,1,0,144,109,-1,2106,0,0,1201,-2,0,144,21001,144,0,0,109,1,1101,1,0,144,109,-1,1201,0,0,146,102,-1,144,145,1,146,145,144,21001,144,0,0,109,1,21101,107,0,0,109,1,1106,0,28,109,-1,21001,144,0,0,109,1,1201,-3,0,144,109,-1,1201,0,0,146,2,146,144,144,109,-1,2106,0,0,1101,0,0,144,109,-1,2106];
+    const MISC_FIB: [i64; 141] = [109, 147, 3, 144, 1001, 144, 0, 143, 21001, 143, 0, 0, 109, 1, 21101, 23, 0, 0, 109, 1, 1106, 0, 28, 109, -1, 4, 144, 99, 1201, -2, 0, 144, 21001, 144, 0, 0, 109, 1, 1101, 2, 0, 144, 109, -1, 1201, 0, 0, 146, 7, 146, 144, 144, 1006, 144, 64, 1101, 1, 0, 144, 109, -1, 2106, 0, 0, 1201, -2, 0, 144, 21001, 144, 0, 0, 109, 1, 1101, 1, 0, 144, 109, -1, 1201, 0, 0, 146, 102, -1, 144, 145, 1, 146, 145, 144, 21001, 144, 0, 0, 109, 1, 21101, 107, 0, 0, 109, 1, 1106, 0, 28, 109, -1, 21001, 144, 0, 0, 109, 1, 1201, -3, 0, 144, 109, -1, 1201, 0, 0, 146, 2, 146, 144, 144, 109, -1, 2106, 0, 0, 1101, 0, 0, 144, 109, -1, 2106];
 
     #[test]
     fn misc_fib() {

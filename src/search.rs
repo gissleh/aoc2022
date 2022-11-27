@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
 use std::hash::Hash;
 use std::ops::Add;
+use num::{Integer, One};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 
@@ -177,6 +178,33 @@ impl<S, G> BFS<S, G> where S: Eq + Hash + Clone {
     }
 }
 
+/// bisect binary-searches, but it might go outside the range, so be careful.
+pub fn bisect<I, F>(start: I, initial_step: I, cb: F) -> Option<I>
+    where I: Integer + Copy + One, F: Fn(I) -> Ordering {
+    let two = I::one() + I::one();
+    let mut current = start;
+    let mut step = initial_step;
+    let mut ones_left = 32;
+
+    while ones_left > 0 {
+        match cb(current) {
+            Ordering::Equal => { return Some(current); }
+            Ordering::Less => { current = current.add(step); }
+            Ordering::Greater => {
+                current = current.sub(step);
+            }
+        }
+
+        if step > I::one() {
+            step = step.div(two);
+        } else {
+            ones_left -= 1;
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use crate::geo::Point;
@@ -215,6 +243,13 @@ mod tests {
         Point(2, -1),
         Point(-2, -1),
     ];
+
+    #[test]
+    fn bisect_works() {
+        for i in 0..1000000 {
+            assert_eq!(bisect(500000, 500000, |v| v.cmp(&i)), Some(i));
+        }
+    }
 
     #[test]
     fn chess_piece_2() {

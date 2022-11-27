@@ -1,4 +1,6 @@
+use std::cmp::Ordering;
 use common::intcode::{FixedMemory, Intcode, Memory};
+use common::search::bisect;
 
 common::day!(parse, part1, part2, 100, 1000, 100);
 
@@ -11,23 +13,25 @@ fn part1(program: &FixedMemory<128>) -> i64 {
 }
 
 fn part2(program: &FixedMemory<128>) -> i64 {
-    let mut ic = Intcode::new(program);
-
-    for a in 0..99 {
-        for b in 0..99 {
-            ic.memory_mut().set(1, a);
-            ic.memory_mut().set(2, b);
-            ic.run();
-
-            if ic.memory().get(0) == 19690720 {
-                return a * 100 + b;
-            }
-
-            ic.reset(program);
+    let res = bisect(5000, 5000, move |curr| {
+        if curr < 0 {
+            return Ordering::Less
+        } else if curr > 9999 {
+            return Ordering::Greater
         }
-    }
 
-    0
+        let mut ic = Intcode::new(program);
+        ic.memory_mut().set(1, curr / 100);
+        ic.memory_mut().set(2, curr % 100);
+        ic.run();
+
+        ic.memory().get(0).cmp(&19690720)
+    });
+
+    match res {
+        Some(v) => v,
+        None => 0,
+    }
 }
 
 fn parse(input: &[u8]) -> FixedMemory<128> {
