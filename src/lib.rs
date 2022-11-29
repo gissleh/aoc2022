@@ -3,6 +3,7 @@
 #![feature(step_trait)]
 
 pub mod aoc;
+pub mod crt;
 pub mod parse;
 pub mod geo;
 pub mod octree;
