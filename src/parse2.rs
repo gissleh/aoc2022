@@ -94,6 +94,22 @@ impl<'a, T> ParseResult<'a, T> {
     }
 }
 
+pub fn paragraph(input: &[u8]) -> ParseResult<'_, &[u8]> {
+    if input.len() < 2 {
+        return ParseResult::Bad(input);
+    }
+
+    let line_len = input.windows(2).take_while(|v| *v != b"\n\n").count();
+    if line_len == input.len() {
+        ParseResult::Good(&input[..line_len], &input[line_len..])
+    } else if line_len == input.len() - 1 {
+        ParseResult::Good(&input[..line_len], &input[line_len + 1..])
+    } else {
+        ParseResult::Good(&input[..line_len], &input[line_len + 2..])
+    }
+}
+
+
 pub fn line(input: &[u8]) -> ParseResult<'_, &[u8]> {
     if input.len() == 0 {
         return ParseResult::Bad(input);
@@ -130,7 +146,6 @@ pub fn skip_byte<const P: u8>(input: &[u8]) -> ParseResult<'_, bool> {
         ParseResult::Good(false, input)
     }
 }
-
 
 pub fn skip_all_bytes<const P: u8>(input: &[u8]) -> ParseResult<'_, usize> {
     let count = input.iter().take_while(|v| P.eq(*v)).count();
