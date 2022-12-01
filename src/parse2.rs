@@ -98,7 +98,7 @@ pub fn paragraph(input: &[u8]) -> ParseResult<'_, &[u8]> {
     if input.len() < 2 {
         return ParseResult::Bad(input);
     }
-
+    
     let line_len = input.windows(2).take_while(|v| *v != b"\n\n").count();
     if line_len == input.len() {
         ParseResult::Good(&input[..line_len], &input[line_len..])
