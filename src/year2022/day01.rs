@@ -1,6 +1,12 @@
-common::day!(parse, part1, part2, 10000, 10000, 10000);
-
+use common::aoc::Day;
 use common::parse2;
+
+pub fn main(day: &mut Day, input: &[u8]) {
+    let input = day.run_parse(1000, || parse(input));
+
+    day.run(1, "", 1000, || part1(&input));
+    day.run(2, "", 1000, || part2(&input));
+}
 
 fn parse(data: &[u8]) -> Vec<Vec<u32>> {
     parse2::map(data, |input| parse2::paragraph(input).map(|paragraph| {

@@ -169,8 +169,6 @@ fn run_puzzle(input: &BossStats, hard_mode: bool, initial_state: GameState) -> i
         DijkstraResult::Continue(next_steps)
     }).unwrap();
 
-    assert!(res < 1687);
-
     res
 }
 

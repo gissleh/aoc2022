@@ -5,7 +5,7 @@ use time::PreciseTime;
 
 pub fn load_input(year: i32, date: u32) -> Vec<u8> {
     let args: Vec<String> = std::env::args().collect();
-    let name = args.get(4).cloned().or(Some(format!("input/{}/day{:0width$}.txt", year, date, width=2))).unwrap();
+    let name = args.get(4).cloned().or(Some(format!("input/{}/day{:0width$}.txt", year, date, width = 2))).unwrap();
 
     let mut buf = Vec::with_capacity(2048);
     match File::open(name.clone()) {
@@ -52,7 +52,7 @@ pub fn run_many<T>(times: usize, callback: impl Fn() -> T) -> (T, i64) {
     }
 
     let start = PreciseTime::now();
-    let mut result= callback();
+    let mut result = callback();
     for _ in 1..times {
         result = callback();
     }
@@ -65,6 +65,10 @@ pub fn run_many<T>(times: usize, callback: impl Fn() -> T) -> (T, i64) {
 }
 
 pub fn format_duration(ns: i64) -> String {
+    if ns == i64::MAX {
+        return "-".to_string();
+    }
+
     if ns > 10_000_000_000 {
         format!("{:.1}s", (ns as f64) / (1_000_000_000 as f64))
     } else if ns > 1_000_000_000 {
@@ -78,6 +82,136 @@ pub fn format_duration(ns: i64) -> String {
     }
 }
 
+pub struct Day<'a> {
+    day: &'a AOC,
+    results: Vec<(u32, String, String, i64)>,
+}
+
+impl<'a> Day<'a> {
+    pub fn run_parse<O, F>(&mut self, times: usize, cb: F) -> O
+        where F: Fn() -> O {
+        let (res, ns) = if self.day.run_once {
+            run_once(cb)
+        } else {
+            run_many(times, cb)
+        };
+
+        self.results.push((0, String::new(), String::new(), ns));
+
+        res
+    }
+
+    pub fn run<O, F>(&mut self, part: u32, label: &str, times: usize, cb: F) -> O
+        where F: Fn() -> O,
+              O: std::fmt::Display, {
+        let (res, ns) = if self.day.run_once {
+            run_once(cb)
+        } else {
+            run_many(times, cb)
+        };
+
+        self.results.push((part, label.to_string(), format!("{}", res), ns));
+
+        res
+    }
+}
+
+pub struct AOC {
+    year: i32,
+    day: Option<u32>,
+    run_once: bool,
+    format_table: bool,
+}
+
+impl AOC {
+    pub fn run_year<F>(&self, year: i32, cb: F) where F: Fn(&AOC) -> () {
+        if year == self.year {
+            cb(self);
+        }
+    }
+
+    pub fn run_day<F>(&self, day_number: u32, cb: F) where F: Fn(&mut Day, &[u8]) -> () {
+        if !self.day.is_none() && self.day != Some(day_number) {
+            return;
+        }
+
+        let mut day = Day {
+            day: self,
+            results: Vec::with_capacity(8),
+        };
+
+        cb(&mut day, &load_input(self.year, day_number));
+
+        if !self.format_table {
+            println!("--- Day {} ---------------", day_number);
+
+            for (part, label, res, _) in day.results.iter() {
+                if *part == 0 {
+                    continue;
+                }
+
+                match part {
+                    1..=2 => print!("Part {}", part),
+                    _ => print!("Extra"),
+                }
+                if label.len() > 0 { print!(" ({})", label); }
+                if res.find("\n").is_some() { print!(": \n{}\n", res); } else { print!(": {}", res); }
+                println!();
+            }
+
+            println!();
+
+            let mut mins = [i64::MAX; 3];
+            for (part, label, _, ns) in day.results {
+                if part < 3 {
+                    if ns < mins[part as usize] {
+                        mins[part as usize] = ns;
+                    }
+                }
+
+                match part {
+                    0 => print!("Parse"),
+                    1..=2 => print!("Part {}", part),
+                    _ => print!("Extra"),
+                }
+                if label.len() > 0 { print!(" ({})", label); }
+                println!(": {}", format_duration(ns))
+            }
+
+            println!("Total: {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()))
+        } else {
+            let mut mins = [i64::MAX; 3];
+            for (part, .., ns) in day.results {
+                if part < 3 {
+                    if ns < mins[part as usize] {
+                        mins[part as usize] = ns;
+                    }
+                }
+            }
+
+            println!("Day {:0>2} {: >10} {: >10} {: >10}",
+                     day_number,
+                     format_duration(mins[0]),
+                     format_duration(mins[1]),
+                     format_duration(mins[2]),
+            );
+        }
+    }
+
+    pub fn new() -> AOC {
+        let (year, day) = get_year_and_date();
+        let args: Vec<String> = std::env::args().collect();
+        let op = args.get(3).cloned().or(Some(String::from("run"))).unwrap();
+
+        AOC {
+            run_once: op == "" || op == "bench_once" || op == "table_once",
+            format_table: op == "table" || op == "table_once",
+            day: if day > 0 { Some(day) } else { None },
+
+            year,
+        }
+    }
+}
 
 #[macro_export]
 macro_rules! day {
