@@ -1,5 +1,6 @@
 use common::aoc::Day;
-use common::parse2;
+use common::parse3;
+use common::parse3::Parser;
 
 pub fn main(day: &mut Day, input: &[u8]) {
     let input = day.run_parse(1000, || parse(input));
@@ -14,11 +15,11 @@ pub fn main(day: &mut Day, input: &[u8]) {
 }
 
 fn parse(data: &[u8]) -> Vec<Vec<u32>> {
-    parse2::repeat(data, |input| parse2::paragraph(input).map(|paragraph| {
-        parse2::repeat(paragraph, |input| {
-            parse2::uint::<u32>(input).and_discard(parse2::skip_byte::<b'\n'>)
-        }).collect()
-    })).collect()
+    parse3::unsigned_int::<u32>()
+        .and_skip(parse3::expect_byte(b'\n'))
+        .repeat_until(parse3::expect_byte(b'\n'))
+        .repeat()
+        .parse(data).unwrap()
 }
 
 fn part1(input: &[Vec<u32>]) -> u32 {

@@ -1,5 +1,6 @@
 use common::aoc::Day;
-use common::parse2;
+use common::parse3;
+use common::parse3::Parser;
 
 #[inline]
 fn get_strategy(opp: u8, outcome: u8) -> u8 {
@@ -26,13 +27,13 @@ pub fn main(day: &mut Day, input: &[u8]) {
 }
 
 fn parse(data: &[u8]) -> Vec<(u8, u8)> {
-    parse2::repeat(data, |input| {
-        parse2::expect_either_byte(b"ABC")(input)
-            .and_discard(parse2::expect_byte::<b' '>)
-            .and(parse2::expect_either_byte(b"XYZ"))
-            .and_discard(parse2::skip_byte::<b'\n'>)
-            .map(|(a, b)| (a - b'A', b - b'X'))
-    }).collect()
+    parse3::any_byte()
+        .and_skip(parse3::expect_byte(b' '))
+        .and(parse3::any_byte())
+        .map(|(a,b)| (a - b'A', b - b'X') )
+        .and_skip(parse3::expect_byte(b'\n'))
+        .repeat()
+        .parse(data).unwrap()
 }
 
 fn part1(input: &[(u8, u8)]) -> u32 {
