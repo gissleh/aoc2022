@@ -20,7 +20,7 @@ const CELL_WATER_MASK: u8 = 0b100u8;
 const DOWN: Point<usize> = Point(0, 1);
 
 fn parse(data: &[u8]) -> (VecGrid<u8>, usize) {
-    let instructions: Vec<Instruction> = parse2::map(data, |input| parse2::expect_byte::<b'x'>(input)
+    let instructions: Vec<Instruction> = parse2::repeat(data, |input| parse2::expect_byte::<b'x'>(input)
         .or(parse2::expect_byte::<b'y'>)
         .and_discard(parse2::expect_byte::<b'='>)
         .and(parse2::uint::<usize>)

@@ -131,6 +131,31 @@ pub fn n_bytes<const N: usize>(input: &[u8]) -> ParseResult<'_, &[u8]> {
     }
 }
 
+pub fn expect_either_byte<'i, 'p>(whitelist: &'p [u8]) -> impl Fn(&'i [u8]) -> ParseResult<'i, u8> + 'p {
+    move |input| {
+        match input.first() {
+            Some(v) => {
+                for w in whitelist {
+                    if w.eq(v) {
+                        return ParseResult::Good(*v, &input[1..])
+                    }
+                }
+
+                ParseResult::Bad(input)
+            }
+            None => ParseResult::Bad(input)
+        }
+    }
+}
+
+pub fn any_byte(input: &[u8]) -> ParseResult<'_, u8> {
+    if let Some(p) = input.first() {
+        ParseResult::Good(*p, &input[1..])
+    } else {
+        ParseResult::Bad(input)
+    }
+}
+
 pub fn expect_byte<const P: u8>(input: &[u8]) -> ParseResult<'_, u8> {
     if input.first() == Some(&P) {
         ParseResult::Good(P, &input[1..])
@@ -292,7 +317,7 @@ impl<'a, T, F> Iterator for Map<'a, T, F> where F: Fn(&'a [u8]) -> ParseResult<'
     }
 }
 
-pub fn map<'a, T, F>(input: &'a [u8], f: F) -> Map<'a, T, F>
+pub fn repeat<'a, T, F>(input: &'a [u8], f: F) -> Map<'a, T, F>
     where F: Fn(&'a [u8]) -> ParseResult<'a, T> {
     Map { input, f, spooky_ghost: std::marker::PhantomData }
 }
@@ -323,7 +348,7 @@ pub mod tests {
 
     #[test]
     fn test_map() {
-        let list: Vec<Point<i32>> = map(
+        let list: Vec<Point<i32>> = repeat(
             b"<12, -16>\n<19, 23>\n<-112, 12>",
             |input| point(int::<i32>)(input).and_discard(skip_byte::<b'\n'>),
         ).collect();

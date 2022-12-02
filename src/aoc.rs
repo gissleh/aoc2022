@@ -85,6 +85,7 @@ pub fn format_duration(ns: i64) -> String {
 pub struct Day<'a> {
     day: &'a AOC,
     results: Vec<(u32, String, String, i64)>,
+    notes: Vec<(String, String)>,
 }
 
 impl<'a> Day<'a> {
@@ -99,6 +100,10 @@ impl<'a> Day<'a> {
         self.results.push((0, String::new(), String::new(), ns));
 
         res
+    }
+
+    pub fn note<D>(&mut self, label: &'static str, value: D) where D: std::fmt::Display {
+        self.notes.push((label.to_string(), format!("{}", value)));
     }
 
     pub fn run<O, F>(&mut self, part: u32, label: &str, times: usize, cb: F) -> O
@@ -137,6 +142,7 @@ impl AOC {
 
         let mut day = Day {
             day: self,
+            notes: Vec::new(),
             results: Vec::with_capacity(8),
         };
 
@@ -144,6 +150,16 @@ impl AOC {
 
         if !self.format_table {
             println!("--- Day {} ---------------", day_number);
+
+            if day.notes.len() > 0 {
+                for (label, value) in day.notes.iter() {
+                    print!("{}: ", label);
+                    if value.find("\n").is_some() { print!("\n{}\n", value); } else { print!("{}", value); }
+                    println!();
+                }
+
+                println!();
+            }
 
             for (part, label, res, _) in day.results.iter() {
                 if *part == 0 {
@@ -178,7 +194,8 @@ impl AOC {
                 println!(": {}", format_duration(ns))
             }
 
-            println!("Total: {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()))
+            println!("Total: {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
+            println!();
         } else {
             let mut mins = [i64::MAX; 3];
             for (part, .., ns) in day.results {

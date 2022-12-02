@@ -4,13 +4,18 @@ use common::parse2;
 pub fn main(day: &mut Day, input: &[u8]) {
     let input = day.run_parse(1000, || parse(input));
 
-    day.run(1, "", 1000, || part1(&input));
-    day.run(2, "", 1000, || part2(&input));
+    day.note("Elves", input.len());
+    day.note("Rations", input.iter().map(|v| v.len()).sum::<usize>());
+    day.note("Calories", input.iter().map(|v| v.iter().sum::<u32>()).sum::<u32>());
+
+    day.run(1, "", 10000, || part1(&input));
+    day.run(2, "", 10000, || part2(&input));
+    day.run(2, "Fold", 10000, || part2_fold(&input));
 }
 
 fn parse(data: &[u8]) -> Vec<Vec<u32>> {
-    parse2::map(data, |input| parse2::paragraph(input).map(|paragraph| {
-        parse2::map(paragraph, |input| {
+    parse2::repeat(data, |input| parse2::paragraph(input).map(|paragraph| {
+        parse2::repeat(paragraph, |input| {
             parse2::uint::<u32>(input).and_discard(parse2::skip_byte::<b'\n'>)
         }).collect()
     })).collect()
@@ -29,7 +34,7 @@ fn part2(input: &[Vec<u32>]) -> u32 {
         for i in 0..max.len() {
             if calories > max[i] {
                 max[i] = calories;
-                max.sort();
+                max.sort_unstable();
                 break;
             }
         }
@@ -38,7 +43,20 @@ fn part2(input: &[Vec<u32>]) -> u32 {
     max.iter().sum()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+fn part2_fold(input: &[Vec<u32>]) -> u32 {
+    input.iter()
+        .map(|a| a.iter().sum::<u32>())
+        .fold([0, 0, 0], |a, current| {
+            if current >= a[0] {
+                [current, a[0], a[1]]
+            } else if current >= a[1] {
+                [a[0], current, a[1]]
+            } else if current > a[2] {
+                [a[0], a[1], current]
+            } else {
+                a
+            }
+        })
+        .iter()
+        .sum()
 }
