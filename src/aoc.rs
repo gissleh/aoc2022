@@ -91,13 +91,18 @@ pub struct Day<'a> {
 impl<'a> Day<'a> {
     pub fn run_parse<O, F>(&mut self, times: usize, cb: F) -> O
         where F: Fn() -> O {
+        self.run_parse_labeled("", times, cb)
+    }
+
+    pub fn run_parse_labeled<O, F>(&mut self, label: &str, times: usize, cb: F) -> O
+        where F: Fn() -> O {
         let (res, ns) = if self.day.run_once {
             run_once(cb)
         } else {
             run_many(times, cb)
         };
 
-        self.results.push((0, String::new(), String::new(), ns));
+        self.results.push((0, String::from(label), String::new(), ns));
 
         res
     }

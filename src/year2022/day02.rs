@@ -18,12 +18,15 @@ fn get_score(opp: u8, you: u8) -> u32 {
 }
 
 pub fn main(day: &mut Day, input: &[u8]) {
-    let input = day.run_parse(1000, || parse(input));
+    let parsed_input = day.run_parse(1000, || parse(input));
+    let parsed_input2 = day.run_parse_labeled("w/o parser utils", 10000, || parse_fast(input));
 
-    day.note("Matches", input.len());
+    assert_eq!(parsed_input2, parsed_input);
 
-    day.run(1, "", 10000, || part1(&input));
-    day.run(2, "", 10000, || part2(&input));
+    day.note("Matches", parsed_input.len());
+
+    day.run(1, "", 10000, || part1(&parsed_input));
+    day.run(2, "", 10000, || part2(&parsed_input));
 }
 
 fn parse(data: &[u8]) -> Vec<(u8, u8)> {
@@ -34,6 +37,12 @@ fn parse(data: &[u8]) -> Vec<(u8, u8)> {
         .and_skip(parse3::expect_byte(b'\n'))
         .repeat()
         .parse(data).unwrap()
+}
+
+fn parse_fast(data: &[u8]) -> Vec<(u8, u8)> {
+    data.chunks(4)
+        .map(|v| (v[0] - b'A', v[2] - b'X'))
+        .collect()
 }
 
 fn part1(input: &[(u8, u8)]) -> u32 {
@@ -61,6 +70,6 @@ mod tests {
     #[test]
     fn part2_works_on_example() {
         let input = parse(b"A Y\nB X\nC Z\n");
-        assert_eq!(part2(&input), 12    );
+        assert_eq!(part2(&input), 12);
     }
 }
