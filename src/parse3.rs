@@ -2,6 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
 use std::ops::Neg;
 use num::Integer;
+use crate::geo::{Point, Vertex};
 
 pub trait Parser<'i, T> {
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T>;
@@ -18,6 +19,10 @@ pub trait Parser<'i, T> {
         AndSkip(self, p2, PhantomData::default(), PhantomData::default())
     }
 
+    fn and_skip_ignored<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> AndSkipIgnored<'i, T, T2, Self, P2> where Self: Sized {
+        AndSkipIgnored(self, p2, PhantomData::default(), PhantomData::default())
+    }
+
     fn or<P2: Parser<'i, T> + Sized>(self, p2: P2) -> Or<'i, T, Self, P2> where Self: Sized {
         Or(self, p2, PhantomData::default())
     }
@@ -30,8 +35,16 @@ pub trait Parser<'i, T> {
         RepeatN(n, self, PhantomData::default())
     }
 
+    fn repeat_arr<const N: usize>(self) -> RepeatArray<'i, N, T, Self> where T: Copy + Default, Self: Sized {
+        RepeatArray(self, PhantomData::default())
+    }
+
     fn repeat_until<TE, PE: Parser<'i, TE>>(self, ending: PE) -> RepeatUntil<'i, T, TE, Self, PE> where Self: Sized {
         RepeatUntil(self, ending, PhantomData::default(), PhantomData::default())
+    }
+
+    fn quoted_by(self, prefix: u8, suffix: u8) -> Quoted<'i, T, Self> where Self: Sized {
+        Quoted(self, prefix, suffix, PhantomData::default())
     }
 
     fn map<T2, F: Fn(T) -> T2>(self, cb: F) -> Map<'i, T, T2, F, Self> where Self: Sized {
@@ -63,6 +76,23 @@ impl<'i, T1, T2, P1, P2> Parser<'i, T1> for AndSkip<'i, T1, T2, P1, P2> where P1
             if let ParseResult::Good(_, input) = self.1.parse(input) {
                 return ParseResult::Good(t1, input);
             }
+        }
+
+        ParseResult::Bad(input)
+    }
+}
+
+pub struct AndSkipIgnored<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
+
+impl<'i, T1, T2, P1, P2> Parser<'i, T1> for AndSkipIgnored<'i, T1, T2, P1, P2> where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T1> {
+        if let ParseResult::Good(t1, input) = self.0.parse(input) {
+            return if let ParseResult::Good(_, input) = self.1.parse(input) {
+                ParseResult::Good(t1, input)
+            } else {
+                ParseResult::Good(t1, input)
+            };
         }
 
         ParseResult::Bad(input)
@@ -115,6 +145,28 @@ impl<'i, T, P1, P2> Parser<'i, T> for Or<'i, T, P1, P2> where P1: Parser<'i, T> 
     }
 }
 
+pub struct Quoted<'i, T, P> (P, u8, u8, PhantomData<&'i T>) where P: Parser<'i, T> + Sized;
+
+impl<'i, T, P> Parser<'i, T> for Quoted<'i, T, P> where P: Parser<'i, T> + Sized {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if input.len() == 0 || input[0] != self.1 {
+            return ParseResult::Bad(input);
+        }
+
+        match self.0.parse(&input[1..]) {
+            ParseResult::Good(t, new_input) => {
+                if new_input.len() == 0 || new_input[0] != self.2 {
+                    ParseResult::Bad(input)
+                } else {
+                    ParseResult::Good(t, &new_input[1..])
+                }
+            }
+            ParseResult::Bad(_) => ParseResult::Bad(input),
+        }
+    }
+}
+
 pub struct RepeatN<'i, T, P> (usize, P, PhantomData<&'i T>) where P: Parser<'i, T> + Sized;
 
 impl<'i, T, P> Parser<'i, Vec<T>> for RepeatN<'i, T, P> where P: Parser<'i, T> + Sized {
@@ -140,6 +192,30 @@ impl<'i, T, P> Parser<'i, Vec<T>> for RepeatN<'i, T, P> where P: Parser<'i, T> +
 }
 
 pub struct Repeat<'i, T, P> (P, PhantomData<&'i T>) where P: Parser<'i, T> + Sized;
+
+pub struct RepeatArray<'i, const N: usize, T, P> (P, PhantomData<&'i T>) where T: Default + Copy, P: Parser<'i, T> + Sized;
+
+impl<'i, const N: usize, T, P> Parser<'i, [T; N]> for RepeatArray<'i, N, T, P> where T: Default + Copy, P: Parser<'i, T> + Sized {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, [T; N]> {
+        let mut current_input = input;
+        let mut res = [T::default(); N];
+
+        for i in 0..N {
+            match self.0.parse(current_input) {
+                ParseResult::Good(t, new_input) => {
+                    res[i] = t;
+                    current_input = new_input;
+                }
+                ParseResult::Bad(_) => {
+                    return ParseResult::Bad(input);
+                }
+            }
+        }
+
+        ParseResult::Good(res, current_input)
+    }
+}
 
 impl<'i, T, P> Parser<'i, Vec<T>> for Repeat<'i, T, P> where P: Parser<'i, T> + Sized {
     #[inline]
@@ -412,6 +488,18 @@ pub fn line<'i>() -> impl Parser<'i, &'i [u8]> {
     return Line;
 }
 
+pub fn point<'i, T: Copy + Default + 'i, P: Parser<'i, T>>(p: P) -> impl Parser<'i, Point<T>> {
+    p.and_skip_ignored(expect_byte(b','))
+        .repeat_arr::<2>()
+        .map(|[a, b]| Point(a, b))
+}
+
+pub fn vertex<'i, T: Copy + Default + 'i, P: Parser<'i, T>>(p: P) -> impl Parser<'i, Vertex<T>> {
+    p.and_skip_ignored(expect_byte(b','))
+        .repeat_arr::<3>()
+        .map(|[a, b, c]| Vertex(a, b, c))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -488,7 +576,6 @@ mod tests {
         assert_eq!(parser.parse(b"ABCCCCABBADABBA"), ParseResult::Good(b"ABCCCCA".to_vec(), b"BBADABBA"));
         assert_eq!(parser.parse(b"ABCCDCABBADABBA"), ParseResult::Bad(b"ABCCDCABBADABBA"));
     }
-
 
     #[test]
     fn test_or_repeat() {
@@ -568,5 +655,33 @@ mod tests {
         assert_eq!(parser.parse(b"B:443"), ParseResult::Good(TestStuff::B(443), b""));
         assert_eq!(parser.parse(b"C:123"), ParseResult::Good(TestStuff::C(123), b""));
         assert_eq!(parser.parse(b"D:443"), ParseResult::Bad(b"D:443"));
+    }
+
+    #[test]
+    fn test_point() {
+        assert_eq!(vertex(unsigned_int::<u16>()).parse(b"14,32,19"), ParseResult::Good(Vertex(14u16, 32u16, 19u16), b""));
+        assert_eq!(vertex(unsigned_int::<u32>()).parse(b"93828,1,823944"), ParseResult::Good(Vertex(93828u32, 1u32, 823944u32), b""));
+        assert_eq!(vertex(signed_int::<i32>()).parse(b"-1,15,-192"), ParseResult::Good(Vertex(-1i32, 15i32, -192i32), b""));
+        assert_eq!(vertex(signed_int::<i32>()).parse(b"-1,15,-192,"), ParseResult::Good(Vertex(-1i32, 15i32, -192i32), b""));
+        assert_eq!(vertex(signed_int::<i32>()).parse(b"two,nine,eight"), ParseResult::Bad(b"two,nine,eight"));
+        assert_eq!(vertex(signed_int::<i32>()).parse(b"2,nine,eight"), ParseResult::Bad(b"2,nine,eight"));
+        assert_eq!(vertex(signed_int::<i32>()).parse(b"2,9,eight"), ParseResult::Bad(b"2,9,eight"));
+        assert_eq!(vertex(signed_int::<i32>()).parse(b"<19,39,23>"), ParseResult::Bad(b"<19,39,23>"));
+    }
+
+    #[test]
+    fn test_quoted_by() {
+        assert_eq!(
+            vertex(signed_int::<i32>()).quoted_by(b'<', b'>').parse(b"<19,39,23>blurgh"),
+            ParseResult::Good(Vertex(19i32, 39, 23), b"blurgh")
+        );
+        assert_eq!(
+            vertex(signed_int::<i32>()).quoted_by(b'<', b'>').parse(b">19,39,23<blurgh"),
+            ParseResult::Bad(b">19,39,23<blurgh")
+        );
+        assert_eq!(
+            vertex(signed_int::<i32>()).quoted_by(b'<', b'>').parse(b"<f19,39,23>blurgh"),
+            ParseResult::Bad(b"<f19,39,23>blurgh")
+        );
     }
 }
