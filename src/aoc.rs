@@ -131,6 +131,7 @@ pub struct AOC {
     day: Option<u32>,
     run_once: bool,
     format_table: bool,
+    bench: bool,
 }
 
 impl AOC {
@@ -157,8 +158,9 @@ impl AOC {
             println!("--- Day {} ---------------", day_number);
 
             if day.notes.len() > 0 {
+                println!("NOTES:");
                 for (label, value) in day.notes.iter() {
-                    print!("{}: ", label);
+                    print!("  {}: ", label);
                     if value.find("\n").is_some() { print!("\n{}\n", value); } else { print!("{}", value); }
                     println!();
                 }
@@ -166,14 +168,15 @@ impl AOC {
                 println!();
             }
 
+            println!("RESULTS:");
             for (part, label, res, _) in day.results.iter() {
                 if *part == 0 {
                     continue;
                 }
 
                 match part {
-                    1..=2 => print!("Part {}", part),
-                    _ => print!("Extra"),
+                    1..=2 => print!("  P{}", part),
+                    _ => print!("  Extra"),
                 }
                 if label.len() > 0 { print!(" ({})", label); }
                 if res.find("\n").is_some() { print!(": \n{}\n", res); } else { print!(": {}", res); }
@@ -182,25 +185,30 @@ impl AOC {
 
             println!();
 
-            let mut mins = [i64::MAX; 3];
-            for (part, label, _, ns) in day.results {
-                if part < 3 {
-                    if ns < mins[part as usize] {
-                        mins[part as usize] = ns;
+            if self.bench {
+                println!("TIMES:");
+
+                let mut mins = [i64::MAX; 3];
+                for (part, label, _, ns) in day.results {
+                    if part < 3 {
+                        if ns < mins[part as usize] {
+                            mins[part as usize] = ns;
+                        }
                     }
+
+                    match part {
+                        0 => print!("  Parse"),
+                        1..=2 => print!("  P{}", part),
+                        _ => print!("  Extra"),
+                    }
+                    if label.len() > 0 { print!(" ({})", label); }
+                    println!(": {}", format_duration(ns))
                 }
 
-                match part {
-                    0 => print!("Parse"),
-                    1..=2 => print!("Part {}", part),
-                    _ => print!("Extra"),
-                }
-                if label.len() > 0 { print!(" ({})", label); }
-                println!(": {}", format_duration(ns))
+                println!("  MIN(Parse+P1+P2): {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
+                println!();
             }
 
-            println!("Total: {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
-            println!();
         } else {
             let mut mins = [i64::MAX; 3];
             for (part, .., ns) in day.results {
@@ -226,7 +234,8 @@ impl AOC {
         let op = args.get(3).cloned().or(Some(String::from("run"))).unwrap();
 
         AOC {
-            run_once: op == "" || op == "bench_once" || op == "table_once",
+            run_once: op == "" || op == "run" || op == "bench_once" || op == "table_once",
+            bench: op == "table_once" || op == "bench" || op == "table" || op == "bench_once",
             format_table: op == "table" || op == "table_once",
             day: if day > 0 { Some(day) } else { None },
 

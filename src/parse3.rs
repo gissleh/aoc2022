@@ -1,48 +1,49 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
+use std::ops::Neg;
 use num::Integer;
 
-pub trait Parser<T> {
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, T>;
+pub trait Parser<'i, T> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T>;
 
-    fn and<T2, P2: Parser<T2> + Sized>(self, p2: P2) -> And<T, T2, Self, P2> where Self: Sized {
+    fn and<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> And<'i, T, T2, Self, P2> where Self: Sized {
         And(self, p2, PhantomData::default(), PhantomData::default())
     }
 
-    fn and_instead<T2, P2: Parser<T2> + Sized>(self, p2: P2) -> AndInstead<T, T2, Self, P2> where Self: Sized {
+    fn and_instead<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> AndInstead<'i, T, T2, Self, P2> where Self: Sized {
         AndInstead(self, p2, PhantomData::default(), PhantomData::default())
     }
 
-    fn and_skip<T2, P2: Parser<T2> + Sized>(self, p2: P2) -> AndSkip<T, T2, Self, P2> where Self: Sized {
+    fn and_skip<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> AndSkip<'i, T, T2, Self, P2> where Self: Sized {
         AndSkip(self, p2, PhantomData::default(), PhantomData::default())
     }
 
-    fn or<P2: Parser<T> + Sized>(self, p2: P2) -> Or<T, Self, P2> where Self: Sized {
+    fn or<P2: Parser<'i, T> + Sized>(self, p2: P2) -> Or<'i, T, Self, P2> where Self: Sized {
         Or(self, p2, PhantomData::default())
     }
 
-    fn repeat(self) -> Repeat<T, Self> where Self: Sized {
+    fn repeat(self) -> Repeat<'i, T, Self> where Self: Sized {
         Repeat(self, PhantomData::default())
     }
 
-    fn repeat_n(self, n: usize) -> RepeatN<T, Self> where Self: Sized {
+    fn repeat_n(self, n: usize) -> RepeatN<'i, T, Self> where Self: Sized {
         RepeatN(n, self, PhantomData::default())
     }
 
-    fn repeat_until<TE, PE: Parser<TE>>(self, ending: PE) -> RepeatUntil<T, TE, Self, PE> where Self: Sized {
+    fn repeat_until<TE, PE: Parser<'i, TE>>(self, ending: PE) -> RepeatUntil<'i, T, TE, Self, PE> where Self: Sized {
         RepeatUntil(self, ending, PhantomData::default(), PhantomData::default())
     }
 
-    fn map<T2, F: Fn(T) -> T2>(self, cb: F) -> Map<T, T2, F, Self> where Self: Sized {
+    fn map<T2, F: Fn(T) -> T2>(self, cb: F) -> Map<'i, T, T2, F, Self> where Self: Sized {
         Map(self, cb, PhantomData::default(), PhantomData::default())
     }
 }
 
-pub struct And<T1, T2, P1, P2> (P1, P2, PhantomData<T1>, PhantomData<T2>) where P1: Parser<T1> + Sized, P2: Parser<T2> + Sized;
+pub struct And<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
 
-impl<T1, T2, P1, P2> Parser<(T1, T2)> for And<T1, T2, P1, P2> where P1: Parser<T1> + Sized, P2: Parser<T2> + Sized {
+impl<'i, T1, T2, P1, P2> Parser<'i, (T1, T2)> for And<'i, T1, T2, P1, P2> where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, (T1, T2)> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, (T1, T2)> {
         if let ParseResult::Good(t1, input) = self.0.parse(input) {
             if let ParseResult::Good(t2, input) = self.1.parse(input) {
                 return ParseResult::Good((t1, t2), input);
@@ -53,11 +54,11 @@ impl<T1, T2, P1, P2> Parser<(T1, T2)> for And<T1, T2, P1, P2> where P1: Parser<T
     }
 }
 
-pub struct AndSkip<T1, T2, P1, P2> (P1, P2, PhantomData<T1>, PhantomData<T2>) where P1: Parser<T1> + Sized, P2: Parser<T2> + Sized;
+pub struct AndSkip<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
 
-impl<T1, T2, P1, P2> Parser<T1> for AndSkip<T1, T2, P1, P2> where P1: Parser<T1> + Sized, P2: Parser<T2> + Sized {
+impl<'i, T1, T2, P1, P2> Parser<'i, T1> for AndSkip<'i, T1, T2, P1, P2> where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, T1> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T1> {
         if let ParseResult::Good(t1, input) = self.0.parse(input) {
             if let ParseResult::Good(_, input) = self.1.parse(input) {
                 return ParseResult::Good(t1, input);
@@ -68,11 +69,11 @@ impl<T1, T2, P1, P2> Parser<T1> for AndSkip<T1, T2, P1, P2> where P1: Parser<T1>
     }
 }
 
-pub struct AndInstead<T1, T2, P1, P2> (P1, P2, PhantomData<T1>, PhantomData<T2>) where P1: Parser<T1>, P2: Parser<T2>;
+pub struct AndInstead<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1>, P2: Parser<'i, T2>;
 
-impl<T1, T2, P1, P2> Parser<T2> for AndInstead<T1, T2, P1, P2> where P1: Parser<T1>, P2: Parser<T2> {
+impl<'i, T1, T2, P1, P2> Parser<'i, T2> for AndInstead<'i, T1, T2, P1, P2> where P1: Parser<'i, T1>, P2: Parser<'i, T2> {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, T2> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T2> {
         if let ParseResult::Good(_, input) = self.0.parse(input) {
             if let ParseResult::Good(t2, input) = self.1.parse(input) {
                 return ParseResult::Good(t2, input);
@@ -83,14 +84,15 @@ impl<T1, T2, P1, P2> Parser<T2> for AndInstead<T1, T2, P1, P2> where P1: Parser<
     }
 }
 
-pub struct Map<T1, T2, F, P1> (P1, F, PhantomData<T1>, PhantomData<T2>)
-    where P1: Parser<T1> + Sized,
+pub struct Map<'i, T1, T2, F, P1> (P1, F, PhantomData<&'i T1>, PhantomData<T2>)
+    where P1: Parser<'i, T1> + Sized,
           F: Fn(T1) -> T2;
 
-impl<T1, T2, F, P1> Parser<T2> for Map<T1, T2, F, P1> where P1: Parser<T1> + Sized,
-                                                            F: Fn(T1) -> T2 {
+impl<'i, T1, T2, F, P1> Parser<'i, T2> for Map<'i, T1, T2, F, P1>
+    where P1: Parser<'i, T1> + Sized,
+          F: Fn(T1) -> T2 {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, T2> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T2> {
         match self.0.parse(input) {
             ParseResult::Good(t1, input) => ParseResult::Good(self.1(t1), input),
             ParseResult::Bad(input) => ParseResult::Bad(input),
@@ -98,11 +100,11 @@ impl<T1, T2, F, P1> Parser<T2> for Map<T1, T2, F, P1> where P1: Parser<T1> + Siz
     }
 }
 
-pub struct Or<T, P1, P2> (P1, P2, PhantomData<T>) where P1: Parser<T> + Sized, P2: Parser<T> + Sized;
+pub struct Or<'i, T, P1, P2> (P1, P2, PhantomData<&'i T>) where P1: Parser<'i, T> + Sized, P2: Parser<'i, T> + Sized;
 
-impl<T, P1, P2> Parser<T> for Or<T, P1, P2> where P1: Parser<T> + Sized, P2: Parser<T> + Sized {
+impl<'i, T, P1, P2> Parser<'i, T> for Or<'i, T, P1, P2> where P1: Parser<'i, T> + Sized, P2: Parser<'i, T> + Sized {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(t, input) = self.0.parse(input) {
             ParseResult::Good(t, input)
         } else if let ParseResult::Good(t, input) = self.1.parse(input) {
@@ -113,11 +115,11 @@ impl<T, P1, P2> Parser<T> for Or<T, P1, P2> where P1: Parser<T> + Sized, P2: Par
     }
 }
 
-pub struct RepeatN<T, P> (usize, P, PhantomData<T>) where P: Parser<T> + Sized;
+pub struct RepeatN<'i, T, P> (usize, P, PhantomData<&'i T>) where P: Parser<'i, T> + Sized;
 
-impl<T, P> Parser<Vec<T>> for RepeatN<T, P> where P: Parser<T> + Sized {
+impl<'i, T, P> Parser<'i, Vec<T>> for RepeatN<'i, T, P> where P: Parser<'i, T> + Sized {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, Vec<T>> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, Vec<T>> {
         let mut current_input = input;
         let mut res = Vec::with_capacity(self.0);
 
@@ -137,11 +139,11 @@ impl<T, P> Parser<Vec<T>> for RepeatN<T, P> where P: Parser<T> + Sized {
     }
 }
 
-pub struct Repeat<T, P> (P, PhantomData<T>) where P: Parser<T> + Sized;
+pub struct Repeat<'i, T, P> (P, PhantomData<&'i T>) where P: Parser<'i, T> + Sized;
 
-impl<T, P> Parser<Vec<T>> for Repeat<T, P> where P: Parser<T> + Sized {
+impl<'i, T, P> Parser<'i, Vec<T>> for Repeat<'i, T, P> where P: Parser<'i, T> + Sized {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, Vec<T>> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, Vec<T>> {
         let mut current_input = input;
         let mut res = Vec::with_capacity(64);
 
@@ -165,11 +167,11 @@ impl<T, P> Parser<Vec<T>> for Repeat<T, P> where P: Parser<T> + Sized {
     }
 }
 
-pub struct RepeatUntil<TI, TE, PI, PE> (PI, PE, PhantomData<TI>, PhantomData<TE>) where PI: Parser<TI> + Sized, PE: Parser<TE> + Sized;
+pub struct RepeatUntil<'i, TI, TE, PI, PE> (PI, PE, PhantomData<&'i TI>, PhantomData<TE>) where PI: Parser<'i, TI> + Sized, PE: Parser<'i, TE> + Sized;
 
-impl<TI, TE, PI, PE> Parser<Vec<TI>> for RepeatUntil<TI, TE, PI, PE> where PI: Parser<TI> + Sized, PE: Parser<TE> + Sized {
+impl<'i, TI, TE, PI, PE> Parser<'i, Vec<TI>> for RepeatUntil<'i, TI, TE, PI, PE> where PI: Parser<'i, TI> + Sized, PE: Parser<'i, TE> + Sized {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, Vec<TI>> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, Vec<TI>> {
         let mut current_input = input;
         let mut res = Vec::with_capacity(64);
 
@@ -227,9 +229,9 @@ impl<'i, T> Display for ParseResult<'i, T> where T: Display {
 
 struct ExpectByte(u8);
 
-impl Parser<u8> for ExpectByte {
+impl<'i> Parser<'i, u8> for ExpectByte {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, u8> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, u8> {
         match input.first() {
             Some(v) if *v == self.0 => ParseResult::Good(*v, &input[1..]),
             _ => ParseResult::Bad(input)
@@ -238,15 +240,15 @@ impl Parser<u8> for ExpectByte {
 }
 
 #[inline]
-pub fn expect_byte(byte: u8) -> impl Parser<u8> {
+pub fn expect_byte<'i>(byte: u8) -> impl Parser<'i, u8> {
     ExpectByte(byte)
 }
 
 struct AnyByte;
 
-impl Parser<u8> for AnyByte {
+impl<'i> Parser<'i, u8> for AnyByte {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, u8> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, u8> {
         match input.first() {
             Some(v) => ParseResult::Good(*v, &input[1..]),
             _ => ParseResult::Bad(input)
@@ -255,19 +257,19 @@ impl Parser<u8> for AnyByte {
 }
 
 #[inline]
-pub fn any_byte() -> impl Parser<u8> {
+pub fn any_byte<'i>() -> impl Parser<'i, u8> {
     AnyByte
 }
 
-struct ExpectBytes<'p>(&'p [u8]);
+struct ExpectBytes(&'static [u8]);
 
-impl<'p> Parser<&'p [u8]> for ExpectBytes<'p> {
+impl<'i> Parser<'i, &'i [u8]> for ExpectBytes {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, &'p [u8]> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
         if self.0.len() == input.len() {
             ParseResult::Bad(input)
         } else if input[..self.0.len()].eq(self.0) {
-            ParseResult::Good(self.0, &input[self.0.len()..])
+            ParseResult::Good(&input[..self.0.len()], &input[self.0.len()..])
         } else {
             ParseResult::Bad(input)
         }
@@ -275,15 +277,15 @@ impl<'p> Parser<&'p [u8]> for ExpectBytes<'p> {
 }
 
 #[inline]
-pub fn expect_bytes(bytes: &[u8]) -> impl Parser<&[u8]> {
+pub fn expect_bytes<'i>(bytes: &'static [u8]) -> impl Parser<'i, &'i [u8]> {
     ExpectBytes(bytes)
 }
 
 struct ExpectEitherByte<'p>(&'p [u8]);
 
-impl<'p> Parser<u8> for ExpectEitherByte<'p> {
+impl<'i, 'p> Parser<'i, u8> for ExpectEitherByte<'p> {
     #[inline]
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, u8> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, u8> {
         if input.len() == 0 {
             return ParseResult::Bad(input);
         }
@@ -300,19 +302,14 @@ impl<'p> Parser<u8> for ExpectEitherByte<'p> {
 }
 
 #[inline]
-pub fn expect_either_bytes(bytes: &[u8]) -> impl Parser<u8> + '_ {
+pub fn expect_either_bytes<'i, 'p>(bytes: &'p [u8]) -> impl Parser<'i, u8> + '_ {
     ExpectEitherByte(bytes)
 }
 
 struct UnsignedInt<T: Integer + Copy + From<u8>> (PhantomData<T>);
 
-#[inline]
-pub fn unsigned_int<T: Integer + Copy + From<u8> + Default>() -> impl Parser<T> {
-    return UnsignedInt(PhantomData::default());
-}
-
-impl<T: Integer + Copy + From<u8>> Parser<T> for UnsignedInt<T> {
-    fn parse<'i>(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+impl<'i, T: Integer + Copy + From<u8>> Parser<'i, T> for UnsignedInt<T> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if input.is_empty() {
             return ParseResult::Bad(input);
         }
@@ -338,6 +335,81 @@ impl<T: Integer + Copy + From<u8>> Parser<T> for UnsignedInt<T> {
 
         ParseResult::Good(sum, &input[input.len()..])
     }
+}
+
+#[inline]
+pub fn unsigned_int<'i, T: Integer + Copy + From<u8> + Default>() -> impl Parser<'i, T> {
+    return UnsignedInt(PhantomData::default());
+}
+
+struct SignedInt<T: Integer + Copy + From<u8> + Neg<Output=T>> (PhantomData<T>);
+
+impl<'i, T: Integer + Copy + From<u8> + Neg<Output=T>> Parser<'i, T> for SignedInt<T> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if input.is_empty() {
+            return ParseResult::Bad(input);
+        }
+
+        let mut sum = T::zero();
+        let mut neg = false;
+        let ten = T::from(10u8);
+
+        for (i, b) in input.iter().enumerate() {
+            match *b {
+                b'0'..=b'9' => {
+                    sum = sum.mul(ten);
+                    sum = sum.add(T::from(*b - b'0'));
+                }
+                b'-' if !neg && i == 0 => {
+                    neg = true;
+                }
+                _ => {
+                    return if i > 0 {
+                        if neg {
+                            sum = sum.neg()
+                        }
+                        ParseResult::Good(sum, &input[i..])
+                    } else {
+                        ParseResult::Bad(input)
+                    };
+                }
+            }
+        }
+
+        if neg {
+            sum = sum.neg()
+        }
+
+        ParseResult::Good(sum, &input[input.len()..])
+    }
+}
+
+#[inline]
+pub fn signed_int<'i, T: Integer + Copy + From<u8> + Neg<Output=T>>() -> impl Parser<'i, T> {
+    return SignedInt(PhantomData::default());
+}
+
+struct Line;
+
+impl<'i> Parser<'i, &'i [u8]> for Line {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
+        if input.len() == 0 {
+            return ParseResult::Bad(input);
+        }
+
+        let line_pos = input.iter().take_while(|b| **b != b'\n').count();
+
+        if line_pos == input.len() {
+            ParseResult::Good(input, &input[input.len()..])
+        } else {
+            ParseResult::Good(&input[..line_pos], &input[line_pos + 1..])
+        }
+    }
+}
+
+pub fn line<'i>() -> impl Parser<'i, &'i [u8]> {
+    return Line;
 }
 
 #[cfg(test)]
@@ -436,6 +508,43 @@ mod tests {
         assert_eq!(parser.parse(b"DBKRKBRKE"), ParseResult::Bad(b"DBKRKBRKE"));
         assert_eq!(parser.parse(b"BKRKBRKE"), ParseResult::Bad(b"BKRKBRKE"));
         assert_eq!(parser.parse(b"KRKBRKE"), ParseResult::Bad(b"KRKBRKE"));
+    }
+
+    #[test]
+    fn test_unsigned_int() {
+        assert_eq!(unsigned_int::<u8>().parse(b"112, 493"), ParseResult::Good(112u8, b", 493"));
+        assert_eq!(unsigned_int::<u16>().parse(b"11243"), ParseResult::Good(11243u16, b""));
+        assert_eq!(unsigned_int::<u32>().parse(b"9954821; 9348211"), ParseResult::Good(9954821u32, b"; 9348211"));
+        assert_eq!(unsigned_int::<u64>().parse(b"1238482482348u64"), ParseResult::Good(1238482482348u64, b"u64"));
+        assert_eq!(unsigned_int::<u64>().parse(b"three"), ParseResult::Bad(b"three"));
+        assert_eq!(unsigned_int::<u128>().parse(b"1238482332432413411148234448"), ParseResult::Good(1238482332432413411148234448u128, b""));
+    }
+
+    #[test]
+    fn test_signed_int() {
+        assert_eq!(signed_int::<i16>().parse(b"112, 493"), ParseResult::Good(112i16, b", 493"));
+        assert_eq!(signed_int::<i16>().parse(b"-112, 493"), ParseResult::Good(-112i16, b", 493"));
+        assert_eq!(signed_int::<i16>().parse(b"1-12, 493"), ParseResult::Good(1i16, b"-12, 493"));
+        assert_eq!(signed_int::<i16>().parse(b"11243"), ParseResult::Good(11243i16, b""));
+        assert_eq!(signed_int::<i64>().parse(b"negative three"), ParseResult::Bad(b"negative three"));
+    }
+
+    #[test]
+    fn test_line() {
+        assert_eq!(
+            line().parse(b"stuff\nand\nthings"),
+            ParseResult::Good(b"stuff".as_slice(), b"and\nthings"),
+        );
+        assert_eq!(
+            line().parse(b"and\nthings"),
+            ParseResult::Good(b"and".as_slice(), b"things"),
+        );
+        assert_eq!(
+            line().parse(b"things"),
+            ParseResult::Good(b"things".as_slice(), b""),
+        );
+        assert_eq!(line().parse(b""), ParseResult::Bad(b""));
+        assert_eq!(line().parse(b"\n"), ParseResult::Good(b"".as_slice(), b""));
     }
 
     #[test]

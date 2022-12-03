@@ -40,8 +40,8 @@ fn parse(data: &[u8]) -> Vec<(u8, u8)> {
 }
 
 fn parse_fast(data: &[u8]) -> Vec<(u8, u8)> {
-    data.chunks(4)
-        .map(|v| (v[0] - b'A', v[2] - b'X'))
+    data.array_chunks::<4>()
+        .map(|[a, _, b, _]| (a - b'A', b - b'X'))
         .collect()
 }
 
