@@ -13,12 +13,11 @@ pub fn main(day: &mut Day, input_data: &[u8]) {
     day.run(2, "Mask", 10000, || part2(&input));
     day.run(2, "Ranges", 10000, || part2_ranges(&input_ranges));
 
-    day.select_label("Ranges");
+    day.select_label("Mask");
 }
 
 fn parse(data: &[u8]) -> Vec<(u128, u128)> {
-    // This feels wrong, but 43µs saved is 43µs earned
-    const U128_BITS: [u128; 128] = [
+    const U128_BITS: [u128; 128] = [ // If it looks stupid, but saves µs, is it really stupid?
         1 << 0, 1 << 1, 1 << 2, 1 << 3, 1 << 4, 1 << 5, 1 << 6, 1 << 7, 1 << 8, 1 << 9, 1 << 10,
         1 << 11, 1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17, 1 << 18, 1 << 19, 1 << 20,
         1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28, 1 << 29, 1 << 30,
@@ -34,17 +33,25 @@ fn parse(data: &[u8]) -> Vec<(u128, u128)> {
         1 << 119, 1 << 120, 1 << 121, 1 << 122, 1 << 123, 1 << 124, 1 << 125, 1 << 126, 1 << 127
     ];
 
-    parse3::unsigned_int::<u32>()
+    fn get_bitmask(low: u32, high: u32) -> u128 {
+        // Credit: https://www.reddit.com/r/adventofcode/comments/zc0zta/comment/iyvrqwm/?utm_source=share&utm_medium=web2x&context=3
+        assert!(low < 128 && high < 128);
+        let high = U128_BITS[high as usize] - 1;
+        let low = U128_BITS[(low - 1) as usize] - 1;
+        high - low
+    }
+
+    parse3::unsigned_int()
         .and_discard(parse3::expect_byte(b'-'))
-        .and(parse3::unsigned_int::<u32>())
+        .and(parse3::unsigned_int())
         .and_discard(parse3::expect_byte(b','))
-        .and(parse3::unsigned_int::<u32>())
+        .and(parse3::unsigned_int())
         .and_discard(parse3::expect_byte(b'-'))
-        .and(parse3::unsigned_int::<>())
+        .and(parse3::unsigned_int())
         .and_discard(parse3::expect_byte(b'\n'))
         .map(|(((a1, a2), b1), b2)| (
-            (a1..=a2).fold(0u128, |p, c| p | U128_BITS[c as usize]),
-            (b1..=b2).fold(0u128, |p, c| p | U128_BITS[c as usize]),
+            get_bitmask(a1, a2),
+            get_bitmask(b1, b2),
         ))
         .repeat()
         .parse(data).unwrap()
@@ -63,13 +70,13 @@ impl Work {
 }
 
 fn parse_ranges(data: &[u8]) -> Vec<(Work, Work)> {
-    parse3::unsigned_int::<u8>()
+    parse3::unsigned_int()
         .and_discard(parse3::expect_byte(b'-'))
-        .and(parse3::unsigned_int::<u8>())
+        .and(parse3::unsigned_int())
         .and_discard(parse3::expect_byte(b','))
-        .and(parse3::unsigned_int::<u8>())
+        .and(parse3::unsigned_int())
         .and_discard(parse3::expect_byte(b'-'))
-        .and(parse3::unsigned_int::<u8>())
+        .and(parse3::unsigned_int())
         .and_discard(parse3::expect_byte(b'\n'))
         .map(|(((a1, a2), b1), b2)| (Work(a1, a2), Work(b1, b2)))
         .repeat()
