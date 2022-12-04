@@ -86,9 +86,14 @@ pub struct Day<'a> {
     day: &'a AOC,
     results: Vec<(u32, String, String, i64)>,
     notes: Vec<(String, String)>,
+    select_label: Option<String>
 }
 
 impl<'a> Day<'a> {
+    pub fn select_label(&mut self, label: &str) {
+        self.select_label = Some(label.into());
+    }
+
     pub fn run_parse<O, F>(&mut self, times: usize, cb: F) -> O
         where F: Fn() -> O {
         self.run_parse_labeled("", times, cb)
@@ -150,6 +155,7 @@ impl AOC {
             day: self,
             notes: Vec::new(),
             results: Vec::with_capacity(8),
+            select_label: None,
         };
 
         cb(&mut day, &load_input(self.year, day_number));
@@ -191,8 +197,14 @@ impl AOC {
                 let mut mins = [i64::MAX; 3];
                 for (part, label, _, ns) in day.results {
                     if part < 3 {
-                        if ns < mins[part as usize] {
-                            mins[part as usize] = ns;
+                        if let Some(label2) = &day.select_label {
+                            if label2.as_str() == label.as_str() {
+                                mins[part as usize] = ns;
+                            }
+                        } else {
+                            if ns < mins[part as usize] {
+                                mins[part as usize] = ns;
+                            }
                         }
                     }
 
@@ -205,16 +217,25 @@ impl AOC {
                     println!(": {}", format_duration(ns))
                 }
 
-                println!("  MIN(Parse+P1+P2): {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
+                if let Some(label2) = &day.select_label {
+                    println!("  Total ({}): {}", label2, format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
+                } else {
+                    println!("  MIN(Parse+P1+P2): {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
+                }
                 println!();
             }
-
         } else {
             let mut mins = [i64::MAX; 3];
-            for (part, .., ns) in day.results {
+            for (part, label, _, ns) in day.results {
                 if part < 3 {
-                    if ns < mins[part as usize] {
-                        mins[part as usize] = ns;
+                    if let Some(label2) = &day.select_label {
+                        if label2.as_str() == label.as_str() {
+                            mins[part as usize] = ns;
+                        }
+                    } else {
+                        if ns < mins[part as usize] {
+                            mins[part as usize] = ns;
+                        }
                     }
                 }
             }
