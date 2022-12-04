@@ -31,10 +31,10 @@ pub fn main(day: &mut Day, input: &[u8]) {
 
 fn parse(data: &[u8]) -> Vec<(u8, u8)> {
     parse3::any_byte()
-        .and_skip(parse3::expect_byte(b' '))
+        .and_discard(parse3::expect_byte(b' '))
         .and(parse3::any_byte())
         .map(|(a,b)| (a - b'A', b - b'X') )
-        .and_skip(parse3::expect_byte(b'\n'))
+        .and_discard(parse3::expect_byte(b'\n'))
         .repeat()
         .parse(data).unwrap()
 }

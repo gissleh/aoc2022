@@ -12,13 +12,13 @@ pub fn main(day: &mut Day, input_data: &[u8]) {
 
 fn parse(data: &[u8]) -> Vec<(u128, u128)> {
     parse3::unsigned_int::<u32>()
-        .and_skip(parse3::expect_byte(b'-'))
+        .and_discard(parse3::expect_byte(b'-'))
         .and(parse3::unsigned_int::<u32>())
-        .and_skip(parse3::expect_byte(b','))
+        .and_discard(parse3::expect_byte(b','))
         .and(parse3::unsigned_int::<u32>())
-        .and_skip(parse3::expect_byte(b'-'))
+        .and_discard(parse3::expect_byte(b'-'))
         .and(parse3::unsigned_int::<u32>())
-        .and_skip(parse3::expect_byte(b'\n'))
+        .and_discard(parse3::expect_byte(b'\n'))
         .map(|(((a1, a2), b1), b2)| (
             (a1..=a2).fold(0u128, |p, c| p | 1 << c),
             (b1..=b2).fold(0u128, |p, c| p | 1 << c),

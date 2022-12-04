@@ -16,7 +16,7 @@ pub fn main(day: &mut Day, input: &[u8]) {
 
 fn parse(data: &[u8]) -> Vec<Vec<u32>> {
     parse3::unsigned_int::<u32>()
-        .and_skip(parse3::expect_byte(b'\n'))
+        .and_discard(parse3::expect_byte(b'\n'))
         .repeat_until(parse3::expect_byte(b'\n'))
         .repeat()
         .parse(data).unwrap()

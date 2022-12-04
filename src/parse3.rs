@@ -15,12 +15,12 @@ pub trait Parser<'i, T> {
         AndInstead(self, p2, PhantomData::default(), PhantomData::default())
     }
 
-    fn and_skip<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> AndSkip<'i, T, T2, Self, P2> where Self: Sized {
-        AndSkip(self, p2, PhantomData::default(), PhantomData::default())
+    fn and_discard<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> AndDiscard<'i, T, T2, Self, P2> where Self: Sized {
+        AndDiscard(self, p2, PhantomData::default(), PhantomData::default())
     }
 
-    fn and_skip_ignored<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> AndSkipIgnored<'i, T, T2, Self, P2> where Self: Sized {
-        AndSkipIgnored(self, p2, PhantomData::default(), PhantomData::default())
+    fn skip<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> Skip<'i, T, T2, Self, P2> where Self: Sized {
+        Skip(self, p2, PhantomData::default(), PhantomData::default())
     }
 
     fn or<P2: Parser<'i, T> + Sized>(self, p2: P2) -> Or<'i, T, Self, P2> where Self: Sized {
@@ -50,6 +50,10 @@ pub trait Parser<'i, T> {
     fn map<T2, F: Fn(T) -> T2>(self, cb: F) -> Map<'i, T, T2, F, Self> where Self: Sized {
         Map(self, cb, PhantomData::default(), PhantomData::default())
     }
+
+    fn filter<F: Fn(&T) -> bool>(self, cb: F) -> Filter<'i, T, F, Self> where Self: Sized {
+        Filter(self, cb, PhantomData::default())
+    }
 }
 
 pub struct And<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
@@ -67,9 +71,9 @@ impl<'i, T1, T2, P1, P2> Parser<'i, (T1, T2)> for And<'i, T1, T2, P1, P2> where 
     }
 }
 
-pub struct AndSkip<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
+pub struct AndDiscard<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
 
-impl<'i, T1, T2, P1, P2> Parser<'i, T1> for AndSkip<'i, T1, T2, P1, P2> where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized {
+impl<'i, T1, T2, P1, P2> Parser<'i, T1> for AndDiscard<'i, T1, T2, P1, P2> where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized {
     #[inline]
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T1> {
         if let ParseResult::Good(t1, input) = self.0.parse(input) {
@@ -82,9 +86,9 @@ impl<'i, T1, T2, P1, P2> Parser<'i, T1> for AndSkip<'i, T1, T2, P1, P2> where P1
     }
 }
 
-pub struct AndSkipIgnored<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
+pub struct Skip<'i, T1, T2, P1, P2> (P1, P2, PhantomData<&'i T1>, PhantomData<T2>) where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized;
 
-impl<'i, T1, T2, P1, P2> Parser<'i, T1> for AndSkipIgnored<'i, T1, T2, P1, P2> where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized {
+impl<'i, T1, T2, P1, P2> Parser<'i, T1> for Skip<'i, T1, T2, P1, P2> where P1: Parser<'i, T1> + Sized, P2: Parser<'i, T2> + Sized {
     #[inline]
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T1> {
         if let ParseResult::Good(t1, input) = self.0.parse(input) {
@@ -125,6 +129,26 @@ impl<'i, T1, T2, F, P1> Parser<'i, T2> for Map<'i, T1, T2, F, P1>
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T2> {
         match self.0.parse(input) {
             ParseResult::Good(t1, input) => ParseResult::Good(self.1(t1), input),
+            ParseResult::Bad(input) => ParseResult::Bad(input),
+        }
+    }
+}
+
+pub struct Filter<'i, T, F, P> (P, F, PhantomData<&'i T>)
+    where P: Parser<'i, T> + Sized,
+          F: Fn(&T) -> bool;
+
+impl<'i, T, F, P> Parser<'i, T> for Filter<'i, T, F, P>
+    where P: Parser<'i, T> + Sized,
+          F: Fn(&T) -> bool {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        match self.0.parse(input) {
+            ParseResult::Good(t1, input) => if self.1(&t1) {
+                ParseResult::Good(t1, input)
+            } else {
+                ParseResult::Bad(input)
+            },
             ParseResult::Bad(input) => ParseResult::Bad(input),
         }
     }
@@ -489,13 +513,13 @@ pub fn line<'i>() -> impl Parser<'i, &'i [u8]> {
 }
 
 pub fn point<'i, T: Copy + Default + 'i, P: Parser<'i, T>>(p: P) -> impl Parser<'i, Point<T>> {
-    p.and_skip_ignored(expect_byte(b','))
+    p.skip(expect_byte(b','))
         .repeat_arr::<2>()
         .map(|[a, b]| Point(a, b))
 }
 
 pub fn vertex<'i, T: Copy + Default + 'i, P: Parser<'i, T>>(p: P) -> impl Parser<'i, Vertex<T>> {
-    p.and_skip_ignored(expect_byte(b','))
+    p.skip(expect_byte(b','))
         .repeat_arr::<3>()
         .map(|[a, b, c]| Vertex(a, b, c))
 }
@@ -553,7 +577,7 @@ mod tests {
 
     #[test]
     fn test_and_skip() {
-        let parser = expect_byte(b'A').and_skip(expect_byte(b'B')).and_skip(expect_byte(b'C'));
+        let parser = expect_byte(b'A').and_discard(expect_byte(b'B')).and_discard(expect_byte(b'C'));
         assert_eq!(parser.parse(b"ABCD"), ParseResult::Good(b'A', b"D"));
         assert_eq!(parser.parse(b"ABDC"), ParseResult::Bad(b"ABDC"));
         assert_eq!(parser.parse(b"ADBC"), ParseResult::Bad(b"ADBC"));
@@ -655,6 +679,26 @@ mod tests {
         assert_eq!(parser.parse(b"B:443"), ParseResult::Good(TestStuff::B(443), b""));
         assert_eq!(parser.parse(b"C:123"), ParseResult::Good(TestStuff::C(123), b""));
         assert_eq!(parser.parse(b"D:443"), ParseResult::Bad(b"D:443"));
+    }
+
+    #[test]
+    fn test_filter() {
+        #[derive(Debug, Eq, PartialEq)]
+        enum TestStuff {
+            A(u32),
+            B(u32),
+            C(u32),
+        }
+
+        let parser = unsigned_int::<u32>().filter(|v| *v > 0 && *v < 10).map(TestStuff::A)
+                .or(unsigned_int::<u32>().filter(|v| *v > 10 && *v < 20).map(TestStuff::B))
+                .or(unsigned_int::<u32>().filter(|v| *v > 20 && *v < 30).map(TestStuff::C));
+
+        assert_eq!(parser.parse(b"3"), ParseResult::Good(TestStuff::A(3), b""));
+        assert_eq!(parser.parse(b"16"), ParseResult::Good(TestStuff::B(16), b""));
+        assert_eq!(parser.parse(b"22"), ParseResult::Good(TestStuff::C(22), b""));
+        assert_eq!(parser.parse(b"27,18"), ParseResult::Good(TestStuff::C(27), b",18"));
+        assert_eq!(parser.parse(b"37"), ParseResult::Bad(b"37"));
     }
 
     #[test]
