@@ -7,6 +7,8 @@ pub fn main(day: &mut Day, input_data: &[u8]) {
     day.run_parse_labeled("Mask [w/o parser3]", 1000, || parse_raw(input_data));
     let input_ranges = day.run_parse_labeled("Ranges", 1000, || parse_ranges(input_data));
 
+    day.note("Pairs", input.len());
+
     day.run(1, "Mask", 10000, || part1(&input));
     day.run(1, "Ranges", 10000, || part1_ranges(&input_ranges));
     day.run(2, "Mask", 10000, || part2(&input));
@@ -110,7 +112,7 @@ fn part2(input: &[(u128, u128)]) -> usize {
 
 fn part2_ranges(input: &[(Work, Work)]) -> usize {
     input.iter()
-        .filter(|(a, b)| a.overlaps(b))
+        .filter(|(elf1, elf2)| elf1.overlaps(elf2))
         .count()
 }
 
