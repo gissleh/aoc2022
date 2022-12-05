@@ -31,6 +31,10 @@ pub trait Parser<'i, T> {
         Repeat(self, PhantomData::default())
     }
 
+    fn repeat_fold_mut<TF, IF: Fn() -> TF, SF: Fn(&mut TF, T)>(self, init_fn: IF, step_fn: SF) -> RepeatFoldMut<'i, T, TF, SF, IF, Self> where Self: Sized {
+        RepeatFoldMut(self, init_fn, step_fn, PhantomData::default(), PhantomData::default())
+    }
+
     fn repeat_n(self, n: usize) -> RepeatN<'i, T, Self> where Self: Sized {
         RepeatN(n, self, PhantomData::default())
     }
@@ -153,6 +157,43 @@ impl<'i, T, F, P> Parser<'i, T> for Filter<'i, T, F, P>
         }
     }
 }
+
+pub struct RepeatFoldMut<'i, T, TF, SF, IF, P> (P, IF, SF, PhantomData<&'i T>, PhantomData<TF>)
+    where P: Parser<'i, T> + Sized,
+          IF: Fn() -> TF,
+          SF: Fn(&mut TF, T);
+
+impl<'i, T, TF, SF, IF, P> Parser<'i, TF> for RepeatFoldMut<'i, T, TF, SF, IF, P>
+    where P: Parser<'i, T> + Sized,
+          IF: Fn() -> TF,
+          SF: Fn(&mut TF, T) {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, TF> {
+        let mut fold_value = self.1();
+        let mut current_input = input;
+        let mut first = true;
+
+        loop {
+            match self.0.parse(current_input) {
+                ParseResult::Good(t, new_input) => {
+                    self.2(&mut fold_value, t);
+                    current_input = new_input;
+                    first = false;
+                }
+                ParseResult::Bad(_) => {
+                    if first {
+                        return ParseResult::Bad(input);
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        ParseResult::Good(fold_value, current_input)
+    }
+}
+
 
 pub struct Or<'i, T, P1, P2> (P1, P2, PhantomData<&'i T>) where P1: Parser<'i, T> + Sized, P2: Parser<'i, T> + Sized;
 
@@ -698,8 +739,8 @@ mod tests {
         }
 
         let parser = unsigned_int::<u32>().filter(|v| *v > 0 && *v < 10).map(TestStuff::A)
-                .or(unsigned_int::<u32>().filter(|v| *v > 10 && *v < 20).map(TestStuff::B))
-                .or(unsigned_int::<u32>().filter(|v| *v > 20 && *v < 30).map(TestStuff::C));
+            .or(unsigned_int::<u32>().filter(|v| *v > 10 && *v < 20).map(TestStuff::B))
+            .or(unsigned_int::<u32>().filter(|v| *v > 20 && *v < 30).map(TestStuff::C));
 
         assert_eq!(parser.parse(b"3"), ParseResult::Good(TestStuff::A(3), b""));
         assert_eq!(parser.parse(b"16"), ParseResult::Good(TestStuff::B(16), b""));

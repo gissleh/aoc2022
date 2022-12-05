@@ -14,8 +14,10 @@ pub fn main(day: &mut Day, input: &[u8]) {
 }
 
 fn parse(data: &[u8]) -> (Vec<Vec<u8>>, Vec<(u8, u8, u8)>) {
-    let line_len = (parse3::line().parse(data).unwrap().len() + 1) / 4;
-    let (crane_states, data) = parse3::any_byte()
+    let stack_count = (parse3::line().parse(data).unwrap().len() + 1) / 4;
+
+    // Parse the stacks
+    let (stacks, data) = parse3::any_byte()
         .quoted_by(b'[', b']')
         .map(|c| Some(c))
         .or(parse3::expect_bytes(b"   ").map(|_| None))
@@ -23,23 +25,31 @@ fn parse(data: &[u8]) -> (Vec<Vec<u8>>, Vec<(u8, u8, u8)>) {
             parse3::expect_byte(b'\n')
                 .or(parse3::expect_byte(b' '))
         )
-        .repeat()
+        .repeat_fold_mut(
+            || (vec![Vec::<u8>::with_capacity(26); stack_count], 0usize),
+            |(stacks, index), current| {
+                if let Some(state) = current {
+                    stacks[*index % stack_count].push(state);
+                }
+
+                *index += 1;
+            },
+        )
+        .map(|(mut stacks, _)| {
+            for crane in stacks.iter_mut() {
+                crane.reverse();
+            }
+
+            stacks
+        })
         .parse(data).unwrap_and_input();
 
-    let mut stacks = vec![Vec::with_capacity(26); line_len];
-    for (i, crane_state) in crane_states.iter().enumerate() {
-        if let Some(state) = crane_state {
-            stacks[i % line_len].push(*state);
-        }
-    }
-    for crane in stacks.iter_mut() {
-        crane.reverse();
-    }
+    // Parse out the useless number line and the blank one thereafter
+    let (_, data) = parse3::line()
+        .and_discard(parse3::line())
+        .parse(data).unwrap_and_input();
 
-    let paragraph_pos = data.array_windows::<2>().take_while(|v| **v != [b'\n', b'\n']).count();
-
-    assert!(paragraph_pos + 2 < data.len());
-
+    // Parse the moves.
     let moves = parse3::expect_bytes(b"move ")
         .and_instead(parse3::unsigned_int::<u8>())
         .and_discard(parse3::expect_bytes(b" from "))
@@ -49,7 +59,7 @@ fn parse(data: &[u8]) -> (Vec<Vec<u8>>, Vec<(u8, u8, u8)>) {
         .skip(parse3::expect_byte(b'\n'))
         .map(|((a, b), c)| (a, b - 1, c - 1))
         .repeat()
-        .parse(&data[paragraph_pos + 2..]).unwrap();
+        .parse(&data).unwrap();
 
     (stacks, moves)
 }
