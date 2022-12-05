@@ -5,7 +5,7 @@ use common::parse3::Parser;
 pub fn main(day: &mut Day, input: &[u8]) {
     let (stacks, moves) = day.run_parse(1000, || parse(input));
 
-    day.note("stacks", stacks.len());
+    day.note("Stacks", stacks.len());
     day.note("Boxes", stacks.iter().map(|v| v.len()).sum::<usize>());
     day.note("Moves", moves.len());
 
