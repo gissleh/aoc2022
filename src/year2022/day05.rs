@@ -36,8 +36,8 @@ fn parse(data: &[u8]) -> (Vec<Vec<u8>>, Vec<(u8, u8, u8)>) {
             },
         )
         .map(|(mut stacks, _)| {
-            for crane in stacks.iter_mut() {
-                crane.reverse();
+            for stack in stacks.iter_mut() {
+                stack.reverse();
             }
 
             stacks
@@ -95,13 +95,11 @@ fn part2(stacks: &[Vec<u8>], moves: &[(u8, u8, u8)]) -> String {
 }
 
 fn stack_top_string(stacks: &Vec<Vec<u8>>) -> String {
-    let v: Vec<u8> = stacks.iter()
+    stacks.iter()
         .map(|v| v.last().cloned())
         .filter(|v| v.is_some())
-        .map(|v| v.unwrap())
-        .collect();
-
-    String::from_utf8_lossy(&v).to_string()
+        .map(|v| v.unwrap() as char)
+        .collect()
 }
 
 #[cfg(test)]
