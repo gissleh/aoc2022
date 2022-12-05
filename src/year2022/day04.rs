@@ -109,8 +109,3 @@ fn part2_ranges(input: &[(Work, Work)]) -> usize {
         .filter(|(elf1, elf2)| elf1.overlaps(elf2))
         .count()
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}

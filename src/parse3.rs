@@ -307,6 +307,13 @@ impl<'i, T> ParseResult<'i, T> {
             ParseResult::Bad(_) => panic!("unwrap on ParseResult::Bad"),
         }
     }
+
+    pub fn unwrap_and_input(self) -> (T, &'i [u8]) {
+        match self {
+            ParseResult::Good(v, i) => (v, i),
+            ParseResult::Bad(_) => panic!("unwrap on ParseResult::Bad"),
+        }
+    }
 }
 
 impl<'i, T> Debug for ParseResult<'i, T> where T: Debug {
@@ -366,7 +373,7 @@ struct ExpectBytes(&'static [u8]);
 impl<'i> Parser<'i, &'i [u8]> for ExpectBytes {
     #[inline]
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
-        if self.0.len() == input.len() {
+        if self.0.len() >= input.len() {
             ParseResult::Bad(input)
         } else if input[..self.0.len()].eq(self.0) {
             ParseResult::Good(&input[..self.0.len()], &input[self.0.len()..])

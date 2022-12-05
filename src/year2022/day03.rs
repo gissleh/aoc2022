@@ -16,10 +16,10 @@ pub fn main(day: &mut Day, input_data: &[u8]) {
 }
 
 fn index(ch: &u8) -> usize {
-    match *ch {
-        b'a'..=b'z' => (ch - b'a') as usize,
-        b'A'..=b'Z' => (ch - b'A') as usize + 26,
-        _ => unreachable!(),
+    if b'a' <= *ch && *ch <= b'z' {
+        (ch - b'a') as usize
+    } else {
+        (ch - b'A') as usize + 26
     }
 }
 
@@ -115,9 +115,4 @@ fn part2_mask(input: &[(u64, u64)]) -> u32 {
             ((*a1 | *a2) & (*b1 | *b2) & (*c1 | *c2)).trailing_zeros() + 1
         })
         .sum()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }
