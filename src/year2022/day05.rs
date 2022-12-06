@@ -6,6 +6,7 @@ pub fn main(day: &mut Day, input: &[u8]) {
     let (stacks, moves) = day.run_parse(1000, || parse(input));
 
     day.note("Stacks", stacks.len());
+    day.note("Stacks", format!("{:?}", stacks.iter().map(|v| v.len()).collect::<Vec<usize>>()));
     day.note("Boxes", stacks.iter().map(|v| v.len()).sum::<usize>());
     day.note("Moves", moves.len());
 
@@ -14,17 +15,15 @@ pub fn main(day: &mut Day, input: &[u8]) {
 }
 
 fn parse(data: &[u8]) -> (Vec<Vec<u8>>, Vec<(u8, u8, u8)>) {
-    let stack_count = (parse3::line().parse(data).unwrap().len() + 1) / 4;
+    let stack_count = (parse3::line().parse(data).unwrap().len() + 3) / 4;
 
     // Parse the stacks
     let (stacks, data) = parse3::any_byte()
         .quoted_by(b'[', b']')
         .map(|c| Some(c))
         .or(parse3::expect_bytes(b"   ").map(|_| None))
-        .and_discard(
-            parse3::expect_byte(b'\n')
-                .or(parse3::expect_byte(b' '))
-        )
+        .skip(parse3::expect_byte(b' '))
+        .skip(parse3::expect_byte(b'\n'))
         .repeat_fold_mut(
             || (vec![Vec::<u8>::with_capacity(26); stack_count], 0usize),
             |(stacks, index), current| {
@@ -79,16 +78,12 @@ fn part1(stacks: &[Vec<u8>], moves: &[(u8, u8, u8)]) -> String {
 
 fn part2(stacks: &[Vec<u8>], moves: &[(u8, u8, u8)]) -> String {
     let mut stacks = stacks.to_vec();
+    let mut crane = Vec::with_capacity(64);
 
     for (c, from, to) in moves.iter().cloned() {
         let si = stacks[from as usize].len() - c as usize;
-
-        for i in 0..c as usize {
-            let top_crate = stacks[from as usize][si + i];
-            stacks[to as usize].push(top_crate);
-        }
-
-        stacks[from as usize].truncate(si);
+        crane.extend(stacks[from as usize].drain(si..));
+        stacks[to as usize].extend(crane.drain(0..));
     }
 
     stack_top_string(&stacks)
