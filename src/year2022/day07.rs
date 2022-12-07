@@ -188,6 +188,6 @@ $ ls
     fn part2_works_on_example() {
         let ResultAndCarry(_, totals) = part1(&parse(EXAMPLE));
 
-        assert_eq!(part2(&parse(EXAMPLE), &totals), 24933642);
+        assert_eq!(part2(&totals), 24933642);
     }
 }
