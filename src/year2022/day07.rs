@@ -1,5 +1,5 @@
 use common::aoc::{Day, ResultAndCarry};
-use common::parse3::{Parser, line, unsigned_int, expect_bytes};
+use common::parse3::{Parser, line, unsigned_int, expect_bytes, expect_byte};
 
 pub fn main(day: &mut Day, input: &[u8]) {
     let input = day.run_parse(1000, || parse(input));
@@ -57,7 +57,10 @@ fn parse(data: &[u8]) -> Vec<FSEntry> {
         .or(expect_bytes(b"$ cd ..\n").map(|_| InputLine::CDUp))
         .or(expect_bytes(b"$ cd ").and_instead(line()).map(InputLine::CD))
         .or(expect_bytes(b"dir ").and_instead(line()).map(InputLine::DirEntry))
-        .or(unsigned_int().and(line()).map(|(s, n)| InputLine::FileEntry(s, n)))
+        .or(unsigned_int()
+            .and_discard(expect_byte(b' '))
+            .and(line())
+            .map(|(s, n)| InputLine::FileEntry(s, n)))
         .repeat_fold_mut(
             || (Vec::<FSEntry>::with_capacity(512), Vec::<usize>::with_capacity(16)),
             |(entries, stack), line| {
