@@ -10,7 +10,7 @@ pub fn main(day: &mut Day, input: &[u8]) {
     day.note("Directories in root", input[0].unwrap_files().len());
 
     let ResultAndCarry(_, total_size) = day.run(1, "", 10000, || part1(&input));
-    day.run(2, "reusing P1 calculations", 10000, || part2(&input, &total_size));
+    day.run(2, "reusing P1 calculations", 10000, || part2(&total_size));
 }
 
 enum FSEntry<'i> {
@@ -42,6 +42,7 @@ impl<'i> FSEntry<'i> {
 }
 
 fn parse(data: &[u8]) -> Vec<FSEntry> {
+    #[derive(Debug)]
     enum InputLine<'i> {
         CD(&'i [u8]),
         CDUp,
@@ -51,65 +52,62 @@ fn parse(data: &[u8]) -> Vec<FSEntry> {
         DirEntry(&'i [u8]),
     }
 
-    let input_lines = expect_bytes(b"$ ls\n").map(|_| InputLine::LS)
+    expect_bytes(b"$ ls\n").map(|_| InputLine::LS)
         .or(expect_bytes(b"$ cd /\n").map(|_| InputLine::CDSlash))
         .or(expect_bytes(b"$ cd ..\n").map(|_| InputLine::CDUp))
         .or(expect_bytes(b"$ cd ").and_instead(line()).map(InputLine::CD))
         .or(expect_bytes(b"dir ").and_instead(line()).map(InputLine::DirEntry))
         .or(unsigned_int().and(line()).map(|(s, n)| InputLine::FileEntry(s, n)))
-        .repeat()
-        .parse(data).unwrap();
+        .repeat_fold_mut(
+            || (Vec::<FSEntry>::with_capacity(512), Vec::<usize>::with_capacity(16)),
+            |(entries, stack), line| {
+                let current_index = stack.last().copied().unwrap_or_default();
 
-    let mut res = Vec::with_capacity(64);
-    res.push(FSEntry::Dir(&data[..0], Vec::with_capacity(8)));
-
-    let mut current_stack = Vec::with_capacity(16);
-    current_stack.push(0);
-
-    for line in input_lines {
-        let current_index = current_stack.last().copied().unwrap_or_default();
-
-        match line {
-            InputLine::LS => {}
-            InputLine::FileEntry(size, name) => {
-                let new_index = res.len();
-                res.push(FSEntry::File(name, size));
-
-                if let FSEntry::Dir(_, entries) = &mut res[current_index] {
-                    entries.push(new_index);
+                if entries.len() == 0 {
+                    entries.push(FSEntry::Dir(&data[..0], Vec::with_capacity(16)));
                 }
-            }
-            InputLine::DirEntry(name) => {
-                let new_index = res.len();
-                res.push(FSEntry::Dir(name, Vec::with_capacity(8)));
 
-                if let FSEntry::Dir(_, entries) = &mut res[current_index] {
-                    entries.push(new_index);
-                }
-            }
-            InputLine::CDSlash => {
-                current_stack.clear();
-                current_stack.push(0);
-            }
-            InputLine::CDUp => {
-                current_stack.pop();
-            }
-            InputLine::CD(target) => {
-                if let FSEntry::Dir(_, entries) = &res[current_index] {
-                    for entry_index in entries {
-                        if let FSEntry::Dir(name, _) = &res[*entry_index] {
-                            if (*name) == target {
-                                current_stack.push(*entry_index);
-                                break;
+                match line {
+                    InputLine::LS => {}
+                    InputLine::FileEntry(size, name) => {
+                        let new_index = entries.len();
+                        entries.push(FSEntry::File(name, size));
+
+                        if let FSEntry::Dir(_, sub_entries) = &mut entries[current_index] {
+                            sub_entries.push(new_index);
+                        }
+                    }
+                    InputLine::DirEntry(name) => {
+                        let new_index = entries.len();
+                        entries.push(FSEntry::Dir(name, Vec::with_capacity(8)));
+
+                        if let FSEntry::Dir(_, sub_entries) = &mut entries[current_index] {
+                            sub_entries.push(new_index);
+                        }
+                    }
+                    InputLine::CDSlash => {
+                        stack.clear();
+                    }
+                    InputLine::CDUp => {
+                        stack.pop();
+                    }
+                    InputLine::CD(target) => {
+                        if let FSEntry::Dir(_, sub_indices) = &entries[current_index] {
+                            for entry_index in sub_indices.iter() {
+                                if let FSEntry::Dir(name, _) = entries[*entry_index] {
+                                    if name == target {
+                                        stack.push(*entry_index);
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-        }
-    }
-
-    res
+            },
+        )
+        .map(|(entries, _)| entries)
+        .parse(data).unwrap()
 }
 
 fn part1(input: &[FSEntry]) -> ResultAndCarry<u32, Vec<u32>> {
@@ -129,7 +127,7 @@ fn part1(input: &[FSEntry]) -> ResultAndCarry<u32, Vec<u32>> {
 
             for sub_index in input[index].unwrap_files().iter() {
                 match input[*sub_index] {
-                    FSEntry::File(_, size) => { total_size[*sub_index] = size; }
+                    FSEntry::File(_, size) => { total_size[index] += size; }
                     FSEntry::Dir(..) => { stack.push((*sub_index, false)); }
                 }
             }
@@ -145,11 +143,11 @@ fn part1(input: &[FSEntry]) -> ResultAndCarry<u32, Vec<u32>> {
     ResultAndCarry(result, total_size)
 }
 
-fn part2(input: &[FSEntry], total_size: &[u32]) -> u32 {
-    input.iter().enumerate()
-        .filter(|(_, v)| v.is_dir())
-        .map(|(i, _)| total_size[i])
-        .filter(|s| *s >= 30000000 - (70000000 - total_size[0]))
+fn part2(total_size: &[u32]) -> u32 {
+    let min_size = 30000000 - (70000000 - total_size[0]);
+
+    *total_size.iter()
+        .filter(|s| **s >= min_size)
         .min().unwrap()
 }
 
