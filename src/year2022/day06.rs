@@ -68,18 +68,10 @@ fn part_linear<const L: usize>(input: &[u8]) -> usize {
 
 fn part2(input: &[u8]) -> usize {
     input.array_windows::<14>()
-        .cloned()
-        .take_while(|a| {
-            for i in 0..14 {
-                for j in 0..i {
-                    if a[i] == a[j] {
-                        return true;
-                    }
-                }
-            }
-
-            false
-        })
+        .take_while(|a| a.iter()
+            .enumerate()
+            .position(|(i, v)| a[..i].contains(v))
+            .is_some())
         .count() + 14
 }
 

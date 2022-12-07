@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::io::Read;
 use chrono::Datelike;
@@ -79,6 +80,14 @@ pub fn format_duration(ns: i64) -> String {
         format!("{:.2}µs", (ns as f64) / (1_000 as f64))
     } else {
         format!("{}ns", ns)
+    }
+}
+
+pub struct ResultAndCarry<R, C>(pub R, pub C);
+
+impl<R, C> Display for ResultAndCarry<R, C> where R: Display {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
