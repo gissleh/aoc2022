@@ -71,7 +71,7 @@ fn both_parts<G>(input: &G) -> ResultPair<usize, u32> where G: GetterGrid<u8> + 
                     break;
                 }
             }
-            
+
             if hidden != 0b1111 {
                 #[cfg(test)] println!("Visible position {},{}", x, y);
                 visible_count += 1;
