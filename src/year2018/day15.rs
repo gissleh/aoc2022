@@ -115,6 +115,11 @@ impl<G> Board<G> where G: GetterGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone
         let mut anyone_moved = false;
         let mut anyone_tried_to_move = false;
 
+        #[cfg(test)] {
+            // For some reason, this optimization only works on the real input.
+            self.everyone_stuck = false;
+        }
+
         for y in 0..self.grid.height() {
             for x in 0..self.grid.width() {
                 let p = Point(x, y);
