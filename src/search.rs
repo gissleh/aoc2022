@@ -30,9 +30,11 @@ impl<C, S> PartialOrd for AdjacentState<S, C> where C: Eq + Copy + Ord + Add<Out
     }
 }
 
+#[derive(Clone)]
 pub struct Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output=C> {
     seen: FxHashMap<S, C>,
     unexplored: BinaryHeap<AdjacentState<S, C>>,
+    candidates: Vec<S>,
     cost_only_increases: bool,
     return_first_success: bool,
 }
@@ -42,6 +44,7 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
         where F: Fn(&S) -> DijkstraResult<C, S> {
         self.seen.clear();
         self.unexplored.clear();
+        self.candidates.clear();
 
         let mut lowest: Option<(C, S)> = None;
 
@@ -57,10 +60,16 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
                     } else {
                         if let Some((lowest_cost, lowest_state)) = &mut lowest {
                             if cost < *lowest_cost {
+                                self.candidates.clear();
+                                self.candidates.push(state.clone());
+
                                 *lowest_cost = cost;
                                 *lowest_state = state;
+                            } else if cost <= *lowest_cost {
+                                self.candidates.push(state);
                             }
                         } else {
+                            self.candidates.push(state.clone());
                             lowest = Some((cost, state));
                         }
                     }
@@ -97,10 +106,15 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
         lowest
     }
 
+    pub fn candidates(&self) -> &[S] {
+        &self.candidates
+    }
+
     pub fn new(cost_only_increases: bool, return_first_success: bool) -> Self {
         Self {
             seen: FxHashMap::default(),
             unexplored: BinaryHeap::with_capacity(64),
+            candidates: Vec::with_capacity(if return_first_success { 0 } else { 8 }),
             cost_only_increases,
             return_first_success,
         }

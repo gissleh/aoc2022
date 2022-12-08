@@ -13,6 +13,9 @@ default = []
 name = "common"
 path = "src/lib.rs"
 
+[profile.release]
+strip = "debuginfo"
+
 [dependencies]
 chrono = "0.4.6"
 time = "0.1.40"

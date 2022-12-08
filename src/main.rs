@@ -14,14 +14,15 @@ pub mod year2019;
 pub mod year2022;
 
 fn main() {
+    let aoc = AOC::new();
+
     #[cfg(feature = "2015")]
     year2015::register_days();
     #[cfg(feature = "2018")]
-    year2018::register_days();
+    aoc.run_year(2018, year2018::main);
     #[cfg(feature = "2019")]
     year2019::register_days();
 
-    let aoc = AOC::new();
 
     aoc.run_year(2022, year2022::main);
 }

@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::iter::Step;
 use arrayvec::ArrayVec;
@@ -9,17 +10,6 @@ use num::traits::WrappingAdd;
 #[derive(Hash, Eq, PartialEq)]
 pub struct Point<T> (pub T, pub T);
 
-impl<T> WrappingAdd for Point<T> where T: WrappingAdd + Add<Output=T> {
-    fn wrapping_add(&self, v: &Self) -> Self {
-        Point(self.0.wrapping_add(&v.0), self.1.wrapping_add(&v.1))
-    }
-}
-
-impl<T> Display for Point<T> where T: Display {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}, {}>", self.0, self.1)
-    }
-}
 
 impl<T> Point<T> {
     #[inline]
@@ -53,14 +43,22 @@ impl<T> Point<T> where T: Sub<Output=T> + Add<Output=T> + Copy + Ord {
     }
 }
 
-impl<T> Point<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
-    pub fn cardinals(&self) -> [Point<T>; 4] {
+impl<T> Point<T> where T: Copy + Add<Output=T> + Sub<Output=T> {
+    #[inline]
+    pub fn cardinals_offset(&self, off: T) -> [Point<T>; 4] {
         [
-            Point(self.0, self.1 - T::one()),
-            Point(self.0 - T::one(), self.1),
-            Point(self.0 + T::one(), self.1),
-            Point(self.0, self.1 + T::one()),
+            Point(self.0, self.1 - off),
+            Point(self.0 - off, self.1),
+            Point(self.0 + off, self.1),
+            Point(self.0, self.1 + off),
         ]
+    }
+}
+
+impl<T> Point<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
+    #[inline]
+    pub fn cardinals(&self) -> [Point<T>; 4] {
+        self.cardinals_offset(T::one())
     }
 
     pub fn neighbors(&self) -> [Point<T>; 8] {
@@ -74,6 +72,31 @@ impl<T> Point<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
             Point(self.0, self.1 + T::one()),
             Point(self.0 + T::one(), self.1 + T::one()),
         ]
+    }
+}
+
+impl<T> Display for Point<T> where T: Display {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<{}, {}>", self.0, self.1)
+    }
+}
+
+impl<T> PartialOrd<Self> for Point<T> where T: Ord {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for Point<T> where T: Ord {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.1.cmp(&other.1)
+            .then_with(|| self.0.cmp(&other.0))
+    }
+}
+
+impl<T> WrappingAdd for Point<T> where T: WrappingAdd + Add<Output=T> {
+    fn wrapping_add(&self, v: &Self) -> Self {
+        Point(self.0.wrapping_add(&v.0), self.1.wrapping_add(&v.1))
     }
 }
 

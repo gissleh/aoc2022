@@ -1,9 +1,18 @@
 use std::cmp::{max, min};
+use common::aoc::Day;
 use common::grid2::{FixedGrid, GetterGrid, RowGrid, VecGrid};
 use common::parse2;
 use common::geo::Point;
 
-common::day!(parse, part1, part2, 10000, 10000, 10000);
+pub fn main(day: &mut Day, input: &[u8]) {
+    let (grid, min_y) = day.run_parse(3, || parse(input));
+
+    day.note("Grid Width", grid.width());
+    day.note("Grid Height", grid.height());
+
+    day.run(1, "", 3, || part1(&grid, min_y));
+    day.run(2, "", 3, || part2(&grid, min_y));
+}
 
 enum Instruction {
     XY1Y2(usize, usize, usize),
@@ -75,12 +84,12 @@ fn parse(data: &[u8]) -> (VecGrid<u8>, usize) {
     (grid, min_y)
 }
 
-fn part1(input: &(VecGrid<u8>, usize)) -> usize {
-    solve(&input.0, input.1, |v| v & CELL_WATER_MASK == CELL_WATER_MASK)
+fn part1(grid: &VecGrid<u8>, min_y: usize) -> usize {
+    solve(grid, min_y, |v| v & CELL_WATER_MASK == CELL_WATER_MASK)
 }
 
-fn part2(input: &(VecGrid<u8>, usize)) -> usize {
-    solve(&input.0, input.1, |v| v == CELL_WATER_SETTLED)
+fn part2(grid: &VecGrid<u8>, min_y: usize) -> usize {
+    solve(grid, min_y, |v| v == CELL_WATER_SETTLED)
 }
 
 fn solve<F>(grid: &VecGrid<u8>, min_y: usize, cb: F) -> usize where F: Fn(u8) -> bool {
@@ -194,7 +203,7 @@ fn solve<F>(grid: &VecGrid<u8>, min_y: usize, cb: F) -> usize where F: Fn(u8) ->
 
 #[test]
 fn test_part1() {
-    let input = parse(b"x=495, y=2..7
+    let (grid, min_y) = parse(b"x=495, y=2..7
 y=7, x=495..501
 x=501, y=3..7
 x=498, y=2..4
@@ -204,5 +213,5 @@ x=504, y=10..13
 y=13, x=498..504
 ");
 
-    assert_eq!(part1(&input), 57);
+    assert_eq!(part1(&grid, min_y), 57);
 }
