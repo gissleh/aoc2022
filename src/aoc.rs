@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::fs::File;
 use std::io::Read;
 use chrono::Datelike;
@@ -91,11 +91,27 @@ impl<R, C> Display for ResultAndCarry<R, C> where R: Display {
     }
 }
 
+#[derive(Eq, PartialEq)]
+pub struct ResultPair<P1, P2>(pub P1, pub P2);
+
+impl<P1, P2> Debug for ResultPair<P1, P2> where P1: Debug, P2: Debug {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "P1: {:?}\n P2: {:?}", self.0, self.1)
+    }
+}
+
+impl<P1, P2> Display for ResultPair<P1, P2> where P1: Display, P2: Display {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (P1), {} (P2)", self.0, self.1)
+    }
+}
+
+
 pub struct Day<'a> {
     day: &'a AOC,
     results: Vec<(u32, String, String, i64)>,
     notes: Vec<(String, String)>,
-    select_label: Option<String>
+    select_label: Option<String>,
 }
 
 impl<'a> Day<'a> {
@@ -191,6 +207,7 @@ impl AOC {
 
                 match part {
                     1..=2 => print!("  P{}", part),
+                    3 => print!("  P1+P2"),
                     _ => print!("  Extra"),
                 }
                 if label.len() > 0 { print!(" ({})", label); }
@@ -203,9 +220,9 @@ impl AOC {
             if self.bench {
                 println!("TIMES:");
 
-                let mut mins = [i64::MAX; 3];
+                let mut mins = [i64::MAX; 4];
                 for (part, label, _, ns) in day.results {
-                    if part < 3 {
+                    if part < 4 {
                         if let Some(label2) = &day.select_label {
                             if label2.as_str() == label.as_str() {
                                 mins[part as usize] = ns;
@@ -220,6 +237,7 @@ impl AOC {
                     match part {
                         0 => print!("  Parse"),
                         1..=2 => print!("  P{}", part),
+                        3 => print!("  P1+P2"),
                         _ => print!("  Extra"),
                     }
                     if label.len() > 0 { print!(" ({})", label); }
@@ -229,14 +247,14 @@ impl AOC {
                 if let Some(label2) = &day.select_label {
                     println!("  Total ({}): {}", label2, format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
                 } else {
-                    println!("  MIN(Parse+P1+P2): {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
+                    println!("  Combined: {}", format_duration(mins.iter().filter(|v| **v != i64::MAX).sum()));
                 }
                 println!();
             }
         } else {
-            let mut mins = [i64::MAX; 3];
+            let mut mins = [i64::MAX; 4];
             for (part, label, _, ns) in day.results {
-                if part < 3 {
+                if part < 4 {
                     if let Some(label2) = &day.select_label {
                         if label2.as_str() == label.as_str() {
                             mins[part as usize] = ns;
@@ -252,8 +270,8 @@ impl AOC {
             println!("Day {:0>2} {: >10} {: >10} {: >10}",
                      day_number,
                      format_duration(mins[0]),
-                     format_duration(mins[1]),
-                     format_duration(mins[2]),
+                     if mins[1] < i64::MAX { format_duration(mins[1]) } else { format_duration(mins[3]) },
+                     if mins[1] < i64::MAX { format_duration(mins[2]) } else { String::new() },
             );
         }
     }

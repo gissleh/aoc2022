@@ -375,6 +375,7 @@ impl<'i, T> Display for ParseResult<'i, T> where T: Display {
     }
 }
 
+#[derive(Copy, Clone)]
 struct ExpectByte(u8);
 
 impl<'i> Parser<'i, u8> for ExpectByte {
@@ -388,10 +389,11 @@ impl<'i> Parser<'i, u8> for ExpectByte {
 }
 
 #[inline]
-pub fn expect_byte<'i>(byte: u8) -> impl Parser<'i, u8> {
+pub fn expect_byte<'i>(byte: u8) -> impl Parser<'i, u8> + Copy {
     ExpectByte(byte)
 }
 
+#[derive(Copy, Clone)]
 struct AnyByte;
 
 impl<'i> Parser<'i, u8> for AnyByte {
@@ -405,10 +407,11 @@ impl<'i> Parser<'i, u8> for AnyByte {
 }
 
 #[inline]
-pub fn any_byte<'i>() -> impl Parser<'i, u8> {
+pub const fn any_byte<'i>() -> impl Parser<'i, u8> + Copy {
     AnyByte
 }
 
+#[derive(Copy, Clone)]
 struct ExpectBytes(&'static [u8]);
 
 impl<'i> Parser<'i, &'i [u8]> for ExpectBytes {
@@ -425,10 +428,11 @@ impl<'i> Parser<'i, &'i [u8]> for ExpectBytes {
 }
 
 #[inline]
-pub fn expect_bytes<'i>(bytes: &'static [u8]) -> impl Parser<'i, &'i [u8]> {
+pub const fn expect_bytes<'i>(bytes: &'static [u8]) -> impl Parser<'i, &'i [u8]> + Copy {
     ExpectBytes(bytes)
 }
 
+#[derive(Copy, Clone)]
 struct ExpectEitherByte<'p>(&'p [u8]);
 
 impl<'i, 'p> Parser<'i, u8> for ExpectEitherByte<'p> {
@@ -450,10 +454,11 @@ impl<'i, 'p> Parser<'i, u8> for ExpectEitherByte<'p> {
 }
 
 #[inline]
-pub fn expect_either_bytes<'i, 'p>(bytes: &'p [u8]) -> impl Parser<'i, u8> + '_ {
+pub const fn expect_either_bytes<'i, 'p>(bytes: &'p [u8]) -> impl Parser<'i, u8> + Copy + '_ {
     ExpectEitherByte(bytes)
 }
 
+#[derive(Copy, Clone)]
 struct UnsignedInt<T: Integer + Copy + From<u8>> (PhantomData<T>);
 
 impl<'i, T: Integer + Copy + From<u8>> Parser<'i, T> for UnsignedInt<T> {
@@ -486,10 +491,11 @@ impl<'i, T: Integer + Copy + From<u8>> Parser<'i, T> for UnsignedInt<T> {
 }
 
 #[inline]
-pub fn unsigned_int<'i, T: Integer + Copy + From<u8> + Default>() -> impl Parser<'i, T> {
+pub fn unsigned_int<'i, T: Integer + Copy + From<u8> + Default>() -> impl Parser<'i, T> + Copy {
     return UnsignedInt(PhantomData::default());
 }
 
+#[derive(Copy, Clone)]
 struct SignedInt<T: Integer + Copy + From<u8> + Neg<Output=T>> (PhantomData<T>);
 
 impl<'i, T: Integer + Copy + From<u8> + Neg<Output=T>> Parser<'i, T> for SignedInt<T> {
@@ -533,10 +539,11 @@ impl<'i, T: Integer + Copy + From<u8> + Neg<Output=T>> Parser<'i, T> for SignedI
 }
 
 #[inline]
-pub fn signed_int<'i, T: Integer + Copy + From<u8> + Neg<Output=T>>() -> impl Parser<'i, T> {
+pub fn signed_int<'i, T: Integer + Copy + From<u8> + Neg<Output=T>>() -> impl Parser<'i, T> + Copy {
     return SignedInt(PhantomData::default());
 }
 
+#[derive(Copy, Clone)]
 struct Line;
 
 impl<'i> Parser<'i, &'i [u8]> for Line {
@@ -560,16 +567,18 @@ pub fn line<'i>() -> impl Parser<'i, &'i [u8]> {
     return Line;
 }
 
-pub fn point<'i, T: Copy + Default + 'i, P: Parser<'i, T>>(p: P) -> impl Parser<'i, Point<T>> {
-    p.skip(expect_byte(b','))
-        .repeat_arr::<2>()
-        .map(|[a, b]| Point(a, b))
+pub fn point<'i, T: Copy + Default + 'i, P: Parser<'i, T> + Copy>(p: P) -> impl Parser<'i, Point<T>> {
+    p.and_discard(expect_byte(b','))
+        .and(p)
+        .map(|(x, y)| Point(x, y))
 }
 
-pub fn vertex<'i, T: Copy + Default + 'i, P: Parser<'i, T>>(p: P) -> impl Parser<'i, Vertex<T>> {
-    p.skip(expect_byte(b','))
-        .repeat_arr::<3>()
-        .map(|[a, b, c]| Vertex(a, b, c))
+pub fn vertex<'i, T: Copy + Default + 'i, P: Parser<'i, T> + Copy>(p: P) -> impl Parser<'i, Vertex<T>> {
+    p.and_discard(expect_byte(b','))
+        .and(p)
+        .and_discard(expect_byte(b','))
+        .and(p)
+        .map(|((x, y), z)| Vertex(x, y, z))
 }
 
 #[cfg(test)]
@@ -752,9 +761,11 @@ mod tests {
     #[test]
     fn test_point() {
         assert_eq!(vertex(unsigned_int::<u16>()).parse(b"14,32,19"), ParseResult::Good(Vertex(14u16, 32u16, 19u16), b""));
+        assert_eq!(point(unsigned_int::<u16>()).parse(b"14,32,19"), ParseResult::Good(Point(14u16, 32u16), b",19"));
         assert_eq!(vertex(unsigned_int::<u32>()).parse(b"93828,1,823944"), ParseResult::Good(Vertex(93828u32, 1u32, 823944u32), b""));
         assert_eq!(vertex(signed_int::<i32>()).parse(b"-1,15,-192"), ParseResult::Good(Vertex(-1i32, 15i32, -192i32), b""));
-        assert_eq!(vertex(signed_int::<i32>()).parse(b"-1,15,-192,"), ParseResult::Good(Vertex(-1i32, 15i32, -192i32), b""));
+        assert_eq!(vertex(signed_int::<i32>()).parse(b"-1,15,-192,"), ParseResult::Good(Vertex(-1i32, 15i32, -192i32), b","));
+        assert_eq!(point(signed_int::<i32>()).parse(b"-1,15,-192,"), ParseResult::Good(Point(-1i32, 15i32), b",-192,"));
         assert_eq!(vertex(signed_int::<i32>()).parse(b"two,nine,eight"), ParseResult::Bad(b"two,nine,eight"));
         assert_eq!(vertex(signed_int::<i32>()).parse(b"2,nine,eight"), ParseResult::Bad(b"2,nine,eight"));
         assert_eq!(vertex(signed_int::<i32>()).parse(b"2,9,eight"), ParseResult::Bad(b"2,9,eight"));
