@@ -7,6 +7,7 @@ pub fn main(day: &mut Day, input_data: &[u8]) {
     let input_mask = day.run_parse_labeled("Mask", 1000, || parse_mask(input_data));
 
     day.note("Backpacks", input.len());
+    day.note("Items", input.iter().map(|(a, b)| a.iter().sum::<u16>() + b.iter().sum::<u16>()).sum::<u16>());
 
     day.run(1, "", 10000, || part1(&input));
     day.run(1, "Mask", 10000, || part1_mask(&input_mask));
@@ -16,7 +17,7 @@ pub fn main(day: &mut Day, input_data: &[u8]) {
 }
 
 fn index(ch: &u8) -> usize {
-    if b'a' <= *ch && *ch <= b'z' {
+    if *ch >= b'a' && *ch <= b'z' {
         (ch - b'a') as usize
     } else {
         (ch - b'A') as usize + 26
