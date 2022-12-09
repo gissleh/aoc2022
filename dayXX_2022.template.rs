@@ -1,5 +1,4 @@
 use common::aoc::Day;
-use common::parse2;
 
 pub fn main(day: &mut Day, input: &[u8]) {
     let input = day.run_parse(1000, || parse(input));

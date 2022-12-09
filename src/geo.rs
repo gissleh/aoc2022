@@ -2,14 +2,13 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::iter::Step;
 use arrayvec::ArrayVec;
-use std::ops::{Add, Mul, Neg, Sub, Shr, Div};
+use std::ops::{Add, Mul, Neg, Sub, Shr, Div, AddAssign};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
 use num::traits::WrappingAdd;
 
 #[derive(Hash, Eq, PartialEq)]
 pub struct Point<T> (pub T, pub T);
-
 
 impl<T> Point<T> {
     #[inline]
@@ -45,6 +44,14 @@ impl<T> Point<T> where T: Sub<Output=T> + Add<Output=T> + Copy + Ord {
 
 impl<T> Point<T> where T: Copy + Add<Output=T> + Sub<Output=T> {
     #[inline]
+    pub fn surrounding_rect_inclusive(&self, dist: T) -> Rect<T> {
+        Rect(
+            Point(self.0 - dist, self.1 - dist),
+            Point(self.0 + dist, self.1 + dist),
+        )
+    }
+
+    #[inline]
     pub fn cardinals_offset(&self, off: T) -> [Point<T>; 4] {
         [
             Point(self.0, self.1 - off),
@@ -57,10 +64,19 @@ impl<T> Point<T> where T: Copy + Add<Output=T> + Sub<Output=T> {
 
 impl<T> Point<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
     #[inline]
+    pub fn surrounding_rect(&self, dist: T) -> Rect<T> {
+        Rect(
+            Point(self.0 - dist, self.1 - dist),
+            Point(self.0 + dist + T::one(), self.1 + dist + T::one()),
+        )
+    }
+
+    #[inline]
     pub fn cardinals(&self) -> [Point<T>; 4] {
         self.cardinals_offset(T::one())
     }
 
+    #[inline]
     pub fn neighbors(&self) -> [Point<T>; 8] {
         [
             Point(self.0 - T::one(), self.1 - T::one()),
@@ -70,6 +86,17 @@ impl<T> Point<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
             Point(self.0 + T::one(), self.1),
             Point(self.0 - T::one(), self.1 + T::one()),
             Point(self.0, self.1 + T::one()),
+            Point(self.0 + T::one(), self.1 + T::one()),
+        ]
+    }
+
+    #[inline]
+    /// This returns an array of 4 neighboring coordinates.
+    pub fn diagonals(&self) -> [Point<T>; 4] {
+        [
+            Point(self.0 - T::one(), self.1 - T::one()),
+            Point(self.0 + T::one(), self.1 - T::one()),
+            Point(self.0 - T::one(), self.1 + T::one()),
             Point(self.0 + T::one(), self.1 + T::one()),
         ]
     }
@@ -91,6 +118,13 @@ impl<T> Ord for Point<T> where T: Ord {
     fn cmp(&self, other: &Self) -> Ordering {
         self.1.cmp(&other.1)
             .then_with(|| self.0.cmp(&other.0))
+    }
+}
+
+impl<T> AddAssign for Point<T> where T: AddAssign {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+        self.1 += rhs.1;
     }
 }
 
@@ -143,6 +177,21 @@ impl<T> Add for Point<T> where T: Add<Output=T> {
 impl<T> std::fmt::Debug for Point<T> where T: std::fmt::Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Point").field(&self.0).field(&self.1).finish()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Rect<T>(pub Point<T>, pub Point<T>);
+
+impl<T> Rect<T> where T: Ord {
+    pub fn contains_point_inclusive(&self, p: &Point<T>) -> bool {
+        p.0 >= self.0.0 && p.0 <= self.1.0
+            && p.1 >= self.0.1 && p.1 <= self.1.1
+    }
+
+    pub fn contains_point(&self, p: &Point<T>) -> bool {
+        p.0 >= self.0.0 && p.0 < self.1.0
+            && p.1 >= self.0.1 && p.1 < self.1.1
     }
 }
 
