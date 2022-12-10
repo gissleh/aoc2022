@@ -1,6 +1,6 @@
-use rustc_hash::FxHashSet;
 use common::aoc::{Day, ResultPair};
 use common::geo::Point;
+use common::grid2::{ArrayGrid, MegaGrid, VecGrid};
 use common::parse3;
 use common::parse3::{expect_byte, Parser, unsigned_int};
 
@@ -13,7 +13,7 @@ pub fn main(day: &mut Day, input: &[u8]) {
     day.run(3, "", 1000, || both_parts(&input));
 }
 
-fn parse(data: &[u8]) -> Vec<(Point<i32>, u32)> {
+fn parse(data: &[u8]) -> Vec<(Point<isize>, u32)> {
     parse3::any_byte()
         .and_discard(expect_byte(b' '))
         .and(unsigned_int::<u32>())
@@ -31,12 +31,19 @@ fn parse(data: &[u8]) -> Vec<(Point<i32>, u32)> {
         .parse(data).unwrap()
 }
 
-fn both_parts(input: &[(Point<i32>, u32)]) -> ResultPair<usize, usize> {
-    let mut has_seen_p1 = FxHashSet::default();
-    let mut has_seen_p2 = FxHashSet::default();
-    let mut rope = [Point(0i32, 0); 10];
-    has_seen_p1.insert(Point(0, 0));
-    has_seen_p2.insert(Point(0, 0));
+fn both_parts(input: &[(Point<isize>, u32)]) -> ResultPair<usize, usize> {
+    let mut rope = [Point(0isize, 0); 10];
+
+    let mut p1_count = 1;
+    let mut p2_count = 1;
+
+    let mut has_seen = MegaGrid::new(
+        ArrayGrid::<u8, 1024, 32>::new(),
+        VecGrid::new(40, 40),
+        Point(-640, -640),
+        0);
+
+    *has_seen.get_mut(&Point(0, 0)).unwrap() = 0b11;
 
     for (dir, count) in input {
         for _ in 0..*count {
@@ -47,19 +54,27 @@ fn both_parts(input: &[(Point<i32>, u32)]) -> ResultPair<usize, usize> {
                     rope[i] = new_tail;
 
                     if i == 9 {
-                        has_seen_p2.insert(new_tail);
+                        let v = has_seen.get_mut(&new_tail).unwrap();
+                        if *v & 2 == 0 {
+                            *v |= 2;
+                            p2_count += 1;
+                        }
                     } else if i == 1 {
-                        has_seen_p1.insert(new_tail);
+                        let v = has_seen.get_mut(&new_tail).unwrap();
+                        if *v & 1 == 0 {
+                            *v |= 1;
+                            p1_count += 1;
+                        }
                     }
                 }
             }
         }
     }
 
-    ResultPair(has_seen_p1.len(), has_seen_p2.len())
+    ResultPair(p1_count, p2_count)
 }
 
-fn find_tail_move(head: &Point<i32>, tail: &Point<i32>) -> Option<Point<i32>> {
+fn find_tail_move(head: &Point<isize>, tail: &Point<isize>) -> Option<Point<isize>> {
     let head_square = head.surrounding_rect_inclusive(1);
     if head_square.contains_point_inclusive(tail) {
         return None;

@@ -2,13 +2,21 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::iter::Step;
 use arrayvec::ArrayVec;
-use std::ops::{Add, Mul, Neg, Sub, Shr, Div, AddAssign};
+use std::ops::{Add, Mul, Neg, Sub, Shr, Div, AddAssign, Rem};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
 use num::traits::WrappingAdd;
 
 #[derive(Hash, Eq, PartialEq)]
 pub struct Point<T> (pub T, pub T);
+
+impl<T> Sub for Point<T> where T: Sub<Output=T> {
+    type Output = Point<T>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Point(self.0 - rhs.0, self.1 - rhs.1)
+    }
+}
 
 impl<T> Point<T> {
     #[inline]
@@ -171,6 +179,14 @@ impl<T> Add for Point<T> where T: Add<Output=T> {
 
     fn add(self, rhs: Self) -> Self::Output {
         Point(self.0 + rhs.0, self.1 + rhs.1)
+    }
+}
+
+impl<T> Rem for Point<T> where T: Rem<Output=T> {
+    type Output = Point<T>;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        Self(self.0.rem(rhs.0), self.1.rem(rhs.1))
     }
 }
 

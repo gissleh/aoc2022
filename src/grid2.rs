@@ -36,7 +36,7 @@ impl<T, const S: usize, const W: usize> CountableGrid<T> for ArrayGrid<T, S, W> 
     }
 }
 
-impl<T, const S: usize, const W: usize> NeighborCountGrid<T> for ArrayGrid<T, S, W>  where T: Eq + WrappingAdd + Add<Output=T> {
+impl<T, const S: usize, const W: usize> NeighborCountGrid<T> for ArrayGrid<T, S, W> where T: Eq + WrappingAdd + Add<Output=T> {
     fn count_neighbors(&self, pos: &Point<usize>, pred: &T) -> usize {
         let mut count = 0;
         for n in NEIGHBORS.iter() {
@@ -98,7 +98,9 @@ impl<T, const S: usize, const W: usize> ArrayGrid<T, S, W> where T: Default + Co
             data: [Default::default(); S]
         }
     }
+}
 
+impl<T, const S: usize, const W: usize> ArrayGrid<T, S, W> {
     pub fn from_array(data: [T; S]) -> Self {
         assert_eq!(S % W, 0);
         Self { data }
@@ -376,6 +378,73 @@ impl<'a, T> Iterator for SliceIter<'a, T> {
 
     fn count(self) -> usize where Self: Sized {
         self.data.len()
+    }
+}
+
+/// A MegaGrid is a sparse grid
+pub struct MegaGrid<T, CG, MG> where CG: FixedGrid + Clone + GetterGrid<T>, MG: GetterGrid<usize> {
+    initial_chunk: CG,
+    default_value: T,
+    offset: Point<isize>,
+    chunk_size: Point<usize>,
+    meta_grid: MG,
+    chunk_list: Vec<CG>,
+}
+
+impl<T, CG, MG> MegaGrid<T, CG, MG> where T: Copy,
+                                          CG: FixedGrid + Clone + GetterGrid<T>,
+                                          MG: GetterGrid<usize> {
+    pub fn get(&self, p: &Point<isize>) -> Option<&T> {
+        let p = *p - self.offset;
+        if p.0 < 0 || p.1 < 0 {
+            return None;
+        }
+        let p = Point(p.0 as usize, p.1 as usize);
+
+        let chunk_idx = p / self.chunk_size;
+        if let Some(chunk) = self.meta_grid.get(&chunk_idx) {
+            if *chunk > 0 {
+                let tile_idx = p % self.chunk_size;
+                self.chunk_list[*chunk - 1].get(&Point(tile_idx.0 as usize, tile_idx.1 as usize))
+            } else {
+                Some(&self.default_value)
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, p: &Point<isize>) -> Option<&mut T> {
+        let p = *p - self.offset;
+        if p.0 < 0 || p.1 < 0 {
+            return None;
+        }
+        let p = Point(p.0 as usize, p.1 as usize);
+
+        let chunk_idx = p / self.chunk_size;
+        if let Some(chunk) = self.meta_grid.get_mut(&chunk_idx) {
+            if *chunk == 0 {
+                self.chunk_list.push(self.initial_chunk.clone());
+                *chunk = self.chunk_list.len()
+            }
+
+            let tile_idx = p % self.chunk_size;
+            self.chunk_list[*chunk - 1].get_mut(&Point(tile_idx.0 as usize, tile_idx.1 as usize))
+        } else {
+            None
+        }
+    }
+
+    pub fn new(initial_chunk: CG, meta_grid: MG, offset: Point<isize>, default_value: T) -> Self {
+        Self{
+            chunk_size: Point(initial_chunk.width(), initial_chunk.height()),
+            chunk_list: Vec::with_capacity(64),
+
+            offset,
+            initial_chunk,
+            meta_grid,
+            default_value,
+        }
     }
 }
 
