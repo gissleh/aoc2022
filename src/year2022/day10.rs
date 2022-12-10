@@ -66,14 +66,20 @@ fn part1(input: &[Instruction]) -> i32 {
 fn part2(input: &[Instruction]) -> String {
     let mut cycle = 0usize;
     let mut sprite_x = 1;
-    let mut res = String::with_capacity((40 * 6) + 7);
+    let mut res = String::with_capacity(41 * 6);
 
     for inst in input.iter().cycle() {
+        if cycle == (40 * 6) {
+            break;
+        }
         p2_draw_pixel(&mut res, cycle, sprite_x);
 
         match inst {
             Instruction::Addx(x) => {
                 cycle += 1;
+                if cycle == (40 * 6) {
+                    break;
+                }
                 p2_draw_pixel(&mut res, cycle, sprite_x);
 
                 sprite_x += *x;
@@ -82,10 +88,6 @@ fn part2(input: &[Instruction]) -> String {
             Instruction::Noop => {
                 cycle += 1;
             }
-        }
-
-        if cycle >= (40 * 6) {
-            break;
         }
     }
 
@@ -127,8 +129,7 @@ addx 2\naddx 2\naddx -6\naddx -11\nnoop\nnoop\nnoop\n";
 ####....####....####....####....####....
 #####.....#####.....#####.....#####.....
 ######......######......######......####
-#######.......#######.......#######.....
-";
+#######.......#######.......#######.....";
 
     #[test]
     fn p1_works_on_example() {
