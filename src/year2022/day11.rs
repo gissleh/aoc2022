@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use num::integer::lcm;
 use common::aoc::Day;
-use common::parse3::{Parser, unsigned_int};
+use common::parse3::{choice, Parser, unsigned_int};
 
 pub fn main(day: &mut Day, input: &[u8]) {
     let input = day.run_parse(1000, || parse(input));
@@ -97,10 +97,12 @@ impl Monkey {
                 .and_instead(unsigned_int().repeat_delimited(b", "))
                 .and_discard(b'\n'))
             .and(b"  Operation: new = old "
-                .and_instead(b"* old".map_to_value(Operation::Square)
-                    .or(b"+ ".and_instead(unsigned_int()).map(Operation::Add))
-                    .or(b"* ".and_instead(unsigned_int()).map(Operation::Mul))
-                    .or(b"+ old".map_to_value(Operation::Double)))
+                .and_instead(choice((
+                    b"* old".map_to_value(Operation::Square),
+                    b"+ ".and_instead(unsigned_int()).map(Operation::Add),
+                    b"* ".and_instead(unsigned_int()).map(Operation::Mul),
+                    b"+ old".map_to_value(Operation::Double),
+                )))
                 .and_discard(b'\n'))
             .and(b"  Test: divisible by "
                 .and_instead(unsigned_int::<u64>())
