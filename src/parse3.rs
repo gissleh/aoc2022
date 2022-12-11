@@ -400,6 +400,7 @@ impl<'i, T> ParseResult<'i, T> {
         }
     }
 
+    #[inline]
     pub fn unwrap_and_input(self) -> (T, &'i [u8]) {
         match self {
             ParseResult::Good(v, i) => (v, i),
@@ -686,6 +687,162 @@ pub fn line<'i>() -> impl Parser<'i, &'i [u8]> {
     return Line;
 }
 
+pub trait Choices<'i, T> {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T>;
+}
+
+impl<'i, const N: usize, T, P: Parser<'i, T>> Choices<'i, T> for [P; N] {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        for i in 0..N {
+            if let ParseResult::Good(t, input) = self[i].parse(input) {
+                return ParseResult::Good(t, input);
+            }
+        }
+
+        ParseResult::Bad(input)
+    }
+}
+
+// Things to learn: Code generation
+
+impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>> Choices<'i, T> for (P1, P2) {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, input) = self.0.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.1.parse(input) {
+            ParseResult::Good(v, input)
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3) {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, input) = self.0.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.1.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.2.parse(input) {
+            ParseResult::Good(v, input)
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4) {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, input) = self.0.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.1.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.2.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.3.parse(input) {
+            ParseResult::Good(v, input)
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5) {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, input) = self.0.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.1.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.2.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.3.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.4.parse(input) {
+            ParseResult::Good(v, input)
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>, P6: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5, P6) {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, input) = self.0.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.1.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.2.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.3.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.4.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.5.parse(input) {
+            ParseResult::Good(v, input)
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>, P6: Parser<'i, T>, P7: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5, P6, P7) {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, input) = self.0.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.1.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.2.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.3.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.4.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.5.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.6.parse(input) {
+            ParseResult::Good(v, input)
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>, P6: Parser<'i, T>, P7: Parser<'i, T>, P8: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5, P6, P7, P8) {
+    fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, input) = self.0.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.1.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.2.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.3.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.4.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.5.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.6.parse(input) {
+            ParseResult::Good(v, input)
+        } else if let ParseResult::Good(v, input) = self.7.parse(input) {
+            ParseResult::Good(v, input)
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+struct Choice<C> (C);
+
+impl<'i, C, T> Parser<'i, T> for Choice<C> where C: Choices<'i, T> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        self.0.parse_choice(input)
+    }
+}
+
+pub fn choice<'i, T, C: Choices<'i, T>>(choices: C) -> impl Parser<'i, T> {
+    Choice(choices)
+}
+
 pub fn point<'i, T: Copy + Default + 'i, P: Parser<'i, T> + Copy>(p: P) -> impl Parser<'i, Point<T>> {
     p.and_discard(expect_byte(b','))
         .and(p)
@@ -924,5 +1081,76 @@ mod tests {
                 .parse(b"Number(5582), String(\"Hello\")"),
             ParseResult::Good(5582u16, b", String(\"Hello\")")
         );
+    }
+
+    #[test]
+    fn test_choices_array() {
+        let parser = choice([b'a', b'b', b'c']);
+        assert_eq!(parser.parse(b"abcd"), ParseResult::Good(b'a', b"bcd"));
+        assert_eq!(parser.parse(b"bcd"), ParseResult::Good(b'b', b"cd"));
+        assert_eq!(parser.parse(b"cd"), ParseResult::Good(b'c', b"d"));
+        assert_eq!(parser.parse(b"d"), ParseResult::Bad(b"d"));
+
+        let parser = choice([
+            b'a'.map_to_value(0u32),
+            b'b'.map_to_value(1u32),
+            b'c'.map_to_value(2u32),
+        ]);
+        assert_eq!(parser.parse(b"abcd"), ParseResult::Good(0u32, b"bcd"));
+        assert_eq!(parser.parse(b"bcd"), ParseResult::Good(1u32, b"cd"));
+        assert_eq!(parser.parse(b"cd"), ParseResult::Good(2u32, b"d"));
+        assert_eq!(parser.parse(b"d"), ParseResult::Bad(b"d"));
+
+        #[derive(Eq, PartialEq, Copy, Clone, Debug)]
+        enum Greeting { Hello, Greetings, Hi }
+        let parser = choice([
+            b"hello ".as_slice().map_to_value(Greeting::Hello).and(line()),
+            b"hello, ".as_slice().map_to_value(Greeting::Hello).and(line()),
+            b"greetings ".as_slice().map_to_value(Greeting::Greetings).and(line()),
+            b"greetings, ".as_slice().map_to_value(Greeting::Greetings).and(line()),
+            b"hi ".as_slice().map_to_value(Greeting::Hi).and(line()),
+            b"hi, ".as_slice().map_to_value(Greeting::Hi).and(line()),
+        ]);
+        assert_eq!(parser.parse(b"hi bob"), ParseResult::Good((Greeting::Hi, b"bob".as_slice()), b""));
+        assert_eq!(parser.parse(b"greetings, archebald"), ParseResult::Good((Greeting::Greetings, b"archebald".as_slice()), b""));
+    }
+
+    #[test]
+    fn test_choices_tuple() {
+        #[derive(Debug, Eq, PartialEq)]
+        enum Instruction<'i> {
+            Add(u16, u16),
+            Sub(u16, u16),
+            Mul(u16, u16),
+            PrintStr(&'i [u8]),
+            PrintVal(u16),
+            PrintAddrs(Vec<u16>),
+        }
+        use Instruction::*;
+        let number = unsigned_int::<u16>();
+        let parser = choice((
+            b"add ".and_instead(number)
+                .and_discard(b' ')
+                .and(number)
+                .map(|(a,b)| Instruction::Add(a,b)),
+            b"sub ".and_instead(number)
+                .and_discard(b' ')
+                .and(number)
+                .map(|(a,b)| Instruction::Sub(a,b)),
+            b"mul ".and_instead(number)
+                .and_discard(b' ')
+                .and(number)
+                .map(|(a,b)| Instruction::Mul(a,b)),
+            b"print_str ".and_instead(line()).map(Instruction::PrintStr),
+            b"print_val ".and_instead(number).map(Instruction::PrintVal),
+            b"print_addrs ".and_instead(
+                number.repeat_delimited(b' ')
+            ).map(Instruction::PrintAddrs),
+        ));
+
+        assert_eq!(parser.parse(b"add 14 9"), ParseResult::Good(Add(14, 9), b""));
+        assert_eq!(parser.parse(b"print_str Hello World"), ParseResult::Good(PrintStr(b"Hello World"), b""));
+        assert_eq!(parser.parse(b"print_addrs 1 2 3 5 7 9"), ParseResult::Good(PrintAddrs(vec![1u16, 2, 3, 5, 7, 9]), b""));
+        assert_eq!(parser.parse(b"eat_food 123"), ParseResult::Bad(b"eat_food 123"));
     }
 }
