@@ -1,6 +1,9 @@
 #![feature(assert_matches)]
 #![feature(option_result_contains)]
 #![feature(step_trait)]
+#![feature(split_array)]
+
+extern crate core;
 
 pub mod aoc;
 pub mod crt;
