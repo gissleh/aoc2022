@@ -692,6 +692,7 @@ pub trait Choices<'i, T> {
 }
 
 impl<'i, const N: usize, T, P: Parser<'i, T>> Choices<'i, T> for [P; N] {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         for i in 0..N {
             if let ParseResult::Good(t, input) = self[i].parse(input) {
@@ -706,6 +707,7 @@ impl<'i, const N: usize, T, P: Parser<'i, T>> Choices<'i, T> for [P; N] {
 // Things to learn: Code generation
 
 impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>> Choices<'i, T> for (P1, P2) {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(v, input) = self.0.parse(input) {
             ParseResult::Good(v, input)
@@ -718,6 +720,7 @@ impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>> Choices<'i, T> for (P1, P2) {
 }
 
 impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3) {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(v, input) = self.0.parse(input) {
             ParseResult::Good(v, input)
@@ -732,6 +735,7 @@ impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>> Choices<'i,
 }
 
 impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4) {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(v, input) = self.0.parse(input) {
             ParseResult::Good(v, input)
@@ -748,6 +752,7 @@ impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<
 }
 
 impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5) {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(v, input) = self.0.parse(input) {
             ParseResult::Good(v, input)
@@ -766,6 +771,7 @@ impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<
 }
 
 impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>, P6: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5, P6) {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(v, input) = self.0.parse(input) {
             ParseResult::Good(v, input)
@@ -786,6 +792,7 @@ impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<
 }
 
 impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>, P6: Parser<'i, T>, P7: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5, P6, P7) {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(v, input) = self.0.parse(input) {
             ParseResult::Good(v, input)
@@ -808,6 +815,7 @@ impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<
 }
 
 impl<'i, T, P1: Parser<'i, T>, P2: Parser<'i, T>, P3: Parser<'i, T>, P4: Parser<'i, T>, P5: Parser<'i, T>, P6: Parser<'i, T>, P7: Parser<'i, T>, P8: Parser<'i, T>> Choices<'i, T> for (P1, P2, P3, P4, P5, P6, P7, P8) {
+    #[inline]
     fn parse_choice(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(v, input) = self.0.parse(input) {
             ParseResult::Good(v, input)
