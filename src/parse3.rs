@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
-use std::ops::Neg;
+use std::ops::{Neg, Range, RangeInclusive};
 use num::Integer;
 use crate::geo::{Point, Vertex};
 
@@ -47,12 +47,20 @@ pub trait Parser<'i, T> {
         RepeatUntil(self, ending, PhantomData::default(), PhantomData::default())
     }
 
-    fn quoted_by(self, prefix: u8, suffix: u8) -> Quoted<'i, T, Self> where Self: Sized {
-        Quoted(self, prefix, suffix, PhantomData::default())
+    fn repeat_delimited<TD, PD: Parser<'i, TD>>(self, delim: PD) -> RepeatDelimited<'i, T, TD, Self, PD> where Self: Sized {
+        RepeatDelimited(self, delim, PhantomData::default(), PhantomData::default())
+    }
+
+    fn quoted_by<TP, TS, PP: Parser<'i, TP>, PS: Parser<'i, TS>>(self, prefix: PP, suffix: PS) -> Quoted<'i, T, TP, TS, Self, PP, PS> where Self: Sized {
+        Quoted(self, prefix, suffix, PhantomData::default(), PhantomData::default(), PhantomData::default())
     }
 
     fn map<T2, F: Fn(T) -> T2>(self, cb: F) -> Map<'i, T, T2, F, Self> where Self: Sized {
         Map(self, cb, PhantomData::default(), PhantomData::default())
+    }
+
+    fn map_to_value<T2: Copy>(self, t2: T2) -> MapValue<'i, T, T2, Self> where Self: Sized {
+        MapValue(self, t2, PhantomData::default(), PhantomData::default())
     }
 
     fn filter<F: Fn(&T) -> bool>(self, cb: F) -> Filter<'i, T, F, Self> where Self: Sized {
@@ -138,6 +146,22 @@ impl<'i, T1, T2, F, P1> Parser<'i, T2> for Map<'i, T1, T2, F, P1>
     }
 }
 
+pub struct MapValue<'i, T1, T2, P1> (P1, T2, PhantomData<&'i T1>, PhantomData<T2>)
+    where P1: Parser<'i, T1> + Sized,
+          T2: Copy;
+
+impl<'i, T1, T2, P1> Parser<'i, T2> for MapValue<'i, T1, T2, P1>
+    where P1: Parser<'i, T1> + Sized,
+          T2: Copy {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T2> {
+        match self.0.parse(input) {
+            ParseResult::Good(_, input) => ParseResult::Good(self.1, input),
+            ParseResult::Bad(input) => ParseResult::Bad(input),
+        }
+    }
+}
+
+
 pub struct Filter<'i, T, F, P> (P, F, PhantomData<&'i T>)
     where P: Parser<'i, T> + Sized,
           F: Fn(&T) -> bool;
@@ -210,25 +234,24 @@ impl<'i, T, P1, P2> Parser<'i, T> for Or<'i, T, P1, P2> where P1: Parser<'i, T> 
     }
 }
 
-pub struct Quoted<'i, T, P> (P, u8, u8, PhantomData<&'i T>) where P: Parser<'i, T> + Sized;
+pub struct Quoted<'i, T, TP, TS, P, PP, PS> (P, PP, PS, PhantomData<&'i T>, PhantomData<TP>, PhantomData<TS>);
 
-impl<'i, T, P> Parser<'i, T> for Quoted<'i, T, P> where P: Parser<'i, T> + Sized {
+impl<'i, T, TP, TS, P, PP, PS> Parser<'i, T> for Quoted<'i, T, TP, TS, P, PP, PS>
+    where P: Parser<'i, T> + Sized,
+          PP: Parser<'i, TP> + Sized,
+          PS: Parser<'i, TS> + Sized
+{
     #[inline]
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
-        if input.len() == 0 || input[0] != self.1 {
-            return ParseResult::Bad(input);
-        }
-
-        match self.0.parse(&input[1..]) {
-            ParseResult::Good(t, new_input) => {
-                if new_input.len() == 0 || new_input[0] != self.2 {
-                    ParseResult::Bad(input)
-                } else {
-                    ParseResult::Good(t, &new_input[1..])
+        if let ParseResult::Good(_, input) = self.1.parse(input) {
+            if let ParseResult::Good(t, input) = self.0.parse(input) {
+                if let ParseResult::Good(_, input) = self.2.parse(input) {
+                    return ParseResult::Good(t, input);
                 }
             }
-            ParseResult::Bad(_) => ParseResult::Bad(input),
         }
+
+        ParseResult::Bad(input)
     }
 }
 
@@ -334,6 +357,34 @@ impl<'i, TI, TE, PI, PE> Parser<'i, Vec<TI>> for RepeatUntil<'i, TI, TE, PI, PE>
     }
 }
 
+pub struct RepeatDelimited<'i, TI, TD, PI, PD> (PI, PD, PhantomData<&'i TI>, PhantomData<TD>) where PI: Parser<'i, TI> + Sized, PD: Parser<'i, TD> + Sized;
+
+impl<'i, TI, TD, PI, PD> Parser<'i, Vec<TI>> for RepeatDelimited<'i, TI, TD, PI, PD> where PI: Parser<'i, TI> + Sized, PD: Parser<'i, TD> + Sized {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, Vec<TI>> {
+        let mut current_input = input;
+        let mut res = Vec::with_capacity(64);
+
+        loop {
+            match self.0.parse(current_input) {
+                ParseResult::Good(t, input_after_term) => {
+                    res.push(t);
+                    current_input = input_after_term;
+
+                    if let ParseResult::Good(_, input_after_delim) = self.1.parse(current_input) {
+                        current_input = input_after_delim;
+                    } else {
+                        return ParseResult::Good(res, input_after_term);
+                    }
+                }
+                ParseResult::Bad(_) => {
+                    return ParseResult::Bad(input);
+                }
+            }
+        }
+    }
+}
+
 #[derive(Eq, PartialEq)]
 pub enum ParseResult<'i, T> {
     Good(T, &'i [u8]),
@@ -388,6 +439,16 @@ impl<'i> Parser<'i, u8> for ExpectByte {
     }
 }
 
+impl<'i> Parser<'i, u8> for u8 {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, u8> {
+        match input.first() {
+            Some(v) if *v == *self => ParseResult::Good(*self, &input[1..]),
+            _ => ParseResult::Bad(input)
+        }
+    }
+}
+
 #[inline]
 pub fn expect_byte<'i>(byte: u8) -> impl Parser<'i, u8> + Copy {
     ExpectByte(byte)
@@ -421,6 +482,64 @@ impl<'i> Parser<'i, &'i [u8]> for ExpectBytes {
             ParseResult::Bad(input)
         } else if input[..self.0.len()].eq(self.0) {
             ParseResult::Good(&input[..self.0.len()], &input[self.0.len()..])
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i> Parser<'i, &'i [u8]> for &'static [u8] {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
+        if self.len() >= input.len() {
+            ParseResult::Bad(input)
+        } else if (input[..self.len()]).eq(*self) {
+            ParseResult::Good(&input[..self.len()], &input[self.len()..])
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, const N: usize> Parser<'i, &'i [u8]> for &[u8; N] {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
+        if N >= input.len() {
+            ParseResult::Bad(input)
+        } else if (input.split_array_ref::<N>()).0.eq(*self) {
+            ParseResult::Good(&input[..N], &input[N..])
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T> Parser<'i, T> for Range<T>
+    where T: Integer + Copy + From<u8> + Default + Ord {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, new_input) = unsigned_int::<T>().parse(input) {
+            if v >= self.start && v < self.end {
+                ParseResult::Good(v, new_input)
+            } else {
+                ParseResult::Bad(input)
+            }
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+impl<'i, T> Parser<'i, T> for RangeInclusive<T>
+    where T: Integer + Copy + From<u8> + Default + Ord {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let ParseResult::Good(v, new_input) = unsigned_int::<T>().parse(input) {
+            if v >= *self.start() && v <= *self.end() {
+                ParseResult::Good(v, new_input)
+            } else {
+                ParseResult::Bad(input)
+            }
         } else {
             ParseResult::Bad(input)
         }
@@ -634,7 +753,7 @@ mod tests {
 
     #[test]
     fn test_and_skip() {
-        let parser = expect_byte(b'A').and_discard(expect_byte(b'B')).and_discard(expect_byte(b'C'));
+        let parser = b'A'.and_discard(b'B').and_discard(b'C');
         assert_eq!(parser.parse(b"ABCD"), ParseResult::Good(b'A', b"D"));
         assert_eq!(parser.parse(b"ABDC"), ParseResult::Bad(b"ABDC"));
         assert_eq!(parser.parse(b"ADBC"), ParseResult::Bad(b"ADBC"));
@@ -686,6 +805,10 @@ mod tests {
         assert_eq!(unsigned_int::<u64>().parse(b"1238482482348u64"), ParseResult::Good(1238482482348u64, b"u64"));
         assert_eq!(unsigned_int::<u64>().parse(b"three"), ParseResult::Bad(b"three"));
         assert_eq!(unsigned_int::<u128>().parse(b"1238482332432413411148234448"), ParseResult::Good(1238482332432413411148234448u128, b""));
+        assert_eq!((0..16u32).parse(b"9954821; 9348211"), ParseResult::Bad(b"9954821; 9348211"));
+        assert_eq!((0..9954822u32).parse(b"9954821; 9348211"), ParseResult::Good(9954821u32, b"; 9348211"));
+        assert_eq!((0..=9954821u32).parse(b"9954821; 9348211"), ParseResult::Good(9954821u32, b"; 9348211"));
+        assert_eq!((0..=9954820u32).parse(b"9954821; 9348211"), ParseResult::Bad(b"9954821; 9348211"));
     }
 
     #[test]
@@ -695,6 +818,15 @@ mod tests {
         assert_eq!(signed_int::<i16>().parse(b"1-12, 493"), ParseResult::Good(1i16, b"-12, 493"));
         assert_eq!(signed_int::<i16>().parse(b"11243"), ParseResult::Good(11243i16, b""));
         assert_eq!(signed_int::<i64>().parse(b"negative three"), ParseResult::Bad(b"negative three"));
+    }
+
+    #[test]
+    fn test_repeat_delimited() {
+        let parser = signed_int::<i32>().repeat_delimited(b", ");
+
+        assert_eq!(parser.parse(b"112, 493"), ParseResult::Good(vec![112i32, 493], b""));
+        assert_eq!(parser.parse(b"112, 493: loaf"), ParseResult::Good(vec![112i32, 493], b": loaf"));
+        assert_eq!(parser.parse(b"112, 493, loaf"), ParseResult::Bad(b"112, 493, loaf"));
     }
 
     #[test]
@@ -785,6 +917,12 @@ mod tests {
         assert_eq!(
             vertex(signed_int::<i32>()).quoted_by(b'<', b'>').parse(b"<f19,39,23>blurgh"),
             ParseResult::Bad(b"<f19,39,23>blurgh")
+        );
+        assert_eq!(
+            unsigned_int::<u16>()
+                .quoted_by(b"Number(", b')')
+                .parse(b"Number(5582), String(\"Hello\")"),
+            ParseResult::Good(5582u16, b", String(\"Hello\")")
         );
     }
 }
