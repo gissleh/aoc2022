@@ -25,6 +25,21 @@ impl<T> Point<T> {
     pub fn y(&self) -> &T { &self.1 }
 }
 
+impl<T> Point<T> {
+    #[inline]
+    pub fn with_z(self, z: T) -> Vertex<T> {
+        Vertex(self.0, self.1, z)
+    }
+}
+
+impl<T> Point<T> where T: Ord {
+    #[inline]
+    pub fn side_of(&self, center: &Point<T>) -> usize {
+        (if self.0 < center.0 { 0 } else { 1 }
+            | if self.1 < center.1 { 0 } else { 2 })
+    }
+}
+
 impl<T> Point<T> where T: Ord + PartialOrd + Zero + Add + Step + Copy {
     #[inline]
     pub fn range(w: T, h: T) -> impl Iterator<Item=Self> {
@@ -38,6 +53,21 @@ impl<T> Point<T> where T: Roots + Sub<Output=T> + Copy {
             pow(rhs.0 - self.0, 2)
                 + pow(rhs.1 - self.1, 2)
         )
+    }
+}
+
+
+
+impl<T> Point<T> where T: Sub<Output=T> + Add<Output=T> + Copy {
+    /// Move the Point to a center based on side_of, for quadtree usage.
+    pub fn move_center(&self, side: usize, distance: T) -> Point<T> {
+        match side {
+            0 => Point(self.0 - distance, self.1 - distance),
+            1 => Point(self.0 + distance, self.1 - distance),
+            2 => Point(self.0 - distance, self.1 + distance),
+            3 => Point(self.0 + distance, self.1 + distance),
+            _ => panic!("invalid side {}", side),
+        }
     }
 }
 

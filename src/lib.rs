@@ -19,3 +19,4 @@ pub mod wfc;
 pub mod parse2;
 pub mod parse3;
 pub mod constants;
+pub mod quadtree;
