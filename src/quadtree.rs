@@ -231,7 +231,6 @@ impl<T> QuadTree<T> {
 #[cfg(test)]
 mod tests {
     use crate::quadtree::Quadrant::{Branch, Leaf};
-    use crate::wfc::WFCBehavior::Quadrant;
     use super::*;
 
     fn assert_tree<const N: usize, T: Eq + std::fmt::Debug>(tree: &QuadTree<T>, expected: [[T; N]; N]) {

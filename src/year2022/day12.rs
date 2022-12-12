@@ -81,9 +81,3 @@ fn part2<G: FixedGrid + GetterGrid<u8>>(input: &G, end_point: &Point<usize>) -> 
 
     distance
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}
