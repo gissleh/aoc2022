@@ -7,6 +7,17 @@ use crate::geo::{Point, Vertex};
 pub trait Parser<'i, T> {
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T>;
 
+    fn first_parsable(&self, input: &'i [u8]) -> ParseResult<'i, (T, usize)> {
+        for off in 0..input.len() {
+            return match self.parse(&input[off..]) {
+                ParseResult::Good(t, new_input) => ParseResult::Good((t, off), new_input),
+                ParseResult::Bad(old_input) => ParseResult::Bad(old_input),
+            };
+        }
+
+        ParseResult::Bad(input)
+    }
+
     fn and<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> And<'i, T, T2, Self, P2> where Self: Sized {
         And(self, p2, PhantomData::default(), PhantomData::default())
     }
@@ -21,6 +32,10 @@ pub trait Parser<'i, T> {
 
     fn skip<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> Skip<'i, T, T2, Self, P2> where Self: Sized {
         Skip(self, p2, PhantomData::default(), PhantomData::default())
+    }
+
+    fn skip_every<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> SkipEvery<T2, Self, P2> where Self: Sized {
+        SkipEvery(self, p2, PhantomData::default())
     }
 
     fn or<P2: Parser<'i, T> + Sized>(self, p2: P2) -> Or<'i, T, Self, P2> where Self: Sized {
@@ -112,6 +127,22 @@ impl<'i, T1, T2, P1, P2> Parser<'i, T1> for Skip<'i, T1, T2, P1, P2> where P1: P
         }
 
         ParseResult::Bad(input)
+    }
+}
+
+pub struct SkipEvery<T2, P1, P2> (P1, P2, PhantomData<T2>);
+
+impl<'i, T1, T2, P1: Parser<'i, T1>, P2: Parser<'i, T2>> Parser<'i, T1> for SkipEvery<T2, P1, P2> {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T1> {
+        if let ParseResult::Good(t1, mut input) = self.0.parse(input) {
+            while let ParseResult::Good(_, new_input) = self.1.parse(input) {
+                input = new_input;
+            }
+
+            ParseResult::Good(t1, input)
+        } else {
+            ParseResult::Bad(input)
+        }
     }
 }
 
@@ -244,9 +275,13 @@ impl<'i, T, TP, TS, P, PP, PS> Parser<'i, T> for Quoted<'i, T, TP, TS, P, PP, PS
     #[inline]
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
         if let ParseResult::Good(_, input) = self.1.parse(input) {
-            if let ParseResult::Good(t, input) = self.0.parse(input) {
-                if let ParseResult::Good(_, input) = self.2.parse(input) {
-                    return ParseResult::Good(t, input);
+            if let ParseResult::Good((_, offset), input_after_delim) = self.2.first_parsable(&input) {
+                if let ParseResult::Good(t, new_input) = self.0.parse(&input[..offset]) {
+                    return if new_input.len() == 0 {
+                        ParseResult::Good(t, input_after_delim)
+                    } else {
+                        ParseResult::Bad(input)
+                    };
                 }
             }
         }
@@ -448,12 +483,18 @@ impl<'i> Parser<'i, u8> for u8 {
             _ => ParseResult::Bad(input)
         }
     }
+
+    #[inline]
+    fn first_parsable(&self, input: &'i [u8]) -> ParseResult<'i, (u8, usize)> {
+        match input.iter().enumerate().find(|(_, v)| *v == self) {
+            Some((pos, v)) => ParseResult::Good((*v, pos), &input[pos + 1..]),
+            None => ParseResult::Bad(input)
+        }
+    }
 }
 
 #[inline]
-pub fn expect_byte<'i>(byte: u8) -> impl Parser<'i, u8> + Copy {
-    ExpectByte(byte)
-}
+pub fn expect_byte<'i>(byte: u8) -> impl Parser<'i, u8> + Copy { byte }
 
 #[derive(Copy, Clone)]
 struct AnyByte;
@@ -471,22 +512,6 @@ impl<'i> Parser<'i, u8> for AnyByte {
 #[inline]
 pub const fn any_byte<'i>() -> impl Parser<'i, u8> + Copy {
     AnyByte
-}
-
-#[derive(Copy, Clone)]
-struct ExpectBytes(&'static [u8]);
-
-impl<'i> Parser<'i, &'i [u8]> for ExpectBytes {
-    #[inline]
-    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
-        if self.0.len() >= input.len() {
-            ParseResult::Bad(input)
-        } else if input[..self.0.len()].eq(self.0) {
-            ParseResult::Good(&input[..self.0.len()], &input[self.0.len()..])
-        } else {
-            ParseResult::Bad(input)
-        }
-    }
 }
 
 impl<'i> Parser<'i, &'i [u8]> for &'static [u8] {
@@ -511,6 +536,17 @@ impl<'i, const N: usize> Parser<'i, &'i [u8]> for &[u8; N] {
             ParseResult::Good(&input[..N], &input[N..])
         } else {
             ParseResult::Bad(input)
+        }
+    }
+
+    #[inline]
+    fn first_parsable(&self, input: &'i [u8]) -> ParseResult<'i, (&'i [u8], usize)> {
+        match input.windows(self.len()).position(|sub| sub == self.as_slice()) {
+            Some(pos) => {
+                let end = pos+self.len();
+                ParseResult::Good((&input[pos..end], pos), &input[end..])
+            },
+            None => ParseResult::Bad(input)
         }
     }
 }
@@ -549,7 +585,7 @@ impl<'i, T> Parser<'i, T> for RangeInclusive<T>
 
 #[inline]
 pub const fn expect_bytes<'i>(bytes: &'static [u8]) -> impl Parser<'i, &'i [u8]> + Copy {
-    ExpectBytes(bytes)
+    bytes
 }
 
 #[derive(Copy, Clone)]
@@ -685,6 +721,24 @@ impl<'i> Parser<'i, &'i [u8]> for Line {
 
 pub fn line<'i>() -> impl Parser<'i, &'i [u8]> {
     return Line;
+}
+
+#[derive(Copy, Clone)]
+struct Everything;
+
+impl<'i> Parser<'i, &'i [u8]> for Everything {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
+        return if input.len() > 0 {
+            ParseResult::Good(input, &input[input.len()..])
+        } else {
+            ParseResult::Bad(input)
+        };
+    }
+}
+
+pub fn everything<'i>() -> impl Parser<'i, &'i [u8]> {
+    return Everything;
 }
 
 pub trait Choices<'i, T> {
@@ -995,6 +1049,21 @@ mod tests {
     }
 
     #[test]
+    fn test_skip() {
+        let parser = b"test:".skip(b' ').and_instead(unsigned_int::<u32>());
+
+        assert_eq!(parser.parse(b"test: 64"), ParseResult::Good(64u32, b""));
+        assert_eq!(parser.parse(b"test:112"), ParseResult::Good(112u32, b""));
+        assert_eq!(parser.parse(b"test:  643 "), ParseResult::Bad(b"test:  643 "));
+
+        let parser = b"test:".skip_every(b' ').and_instead(unsigned_int::<u32>());
+        assert_eq!(parser.parse(b"test: 64"), ParseResult::Good(64u32, b""));
+        assert_eq!(parser.parse(b"test:112"), ParseResult::Good(112u32, b""));
+        assert_eq!(parser.parse(b"test:  643 "), ParseResult::Good(643u32, b" "));
+        assert_eq!(parser.parse(b"test:        712"), ParseResult::Good(712u32, b""));
+    }
+
+    #[test]
     fn test_line() {
         assert_eq!(
             line().parse(b"stuff\nand\nthings"),
@@ -1089,6 +1158,21 @@ mod tests {
                 .parse(b"Number(5582), String(\"Hello\")"),
             ParseResult::Good(5582u16, b", String(\"Hello\")")
         );
+        assert_eq!(
+            unsigned_int::<u16>()
+                .repeat_delimited(b",".skip_every(b' '))
+                .quoted_by(b'[', b"]")
+                .parse(b"[1,    43,    24,15,     112];"),
+            ParseResult::Good(vec![1u16, 43, 24, 15, 112], b";")
+        );
+        assert_eq!(
+            everything().quoted_by(b'"', b'"').parse(b"\"Hello, World!\""),
+            ParseResult::Good(b"Hello, World!".as_slice(), b"")
+        );
+        assert_eq!(
+            everything().quoted_by(b"say(\"", b"\");").parse(b"say(\"Hello, World\"); i += 1;"),
+            ParseResult::Good(b"Hello, World".as_slice(), b" i += 1;")
+        );
     }
 
     #[test]
@@ -1140,15 +1224,15 @@ mod tests {
             b"add ".and_instead(number)
                 .and_discard(b' ')
                 .and(number)
-                .map(|(a,b)| Instruction::Add(a,b)),
+                .map(|(a, b)| Instruction::Add(a, b)),
             b"sub ".and_instead(number)
                 .and_discard(b' ')
                 .and(number)
-                .map(|(a,b)| Instruction::Sub(a,b)),
+                .map(|(a, b)| Instruction::Sub(a, b)),
             b"mul ".and_instead(number)
                 .and_discard(b' ')
                 .and(number)
-                .map(|(a,b)| Instruction::Mul(a,b)),
+                .map(|(a, b)| Instruction::Mul(a, b)),
             b"print_str ".and_instead(line()).map(Instruction::PrintStr),
             b"print_val ".and_instead(number).map(Instruction::PrintVal),
             b"print_addrs ".and_instead(
