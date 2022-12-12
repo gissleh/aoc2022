@@ -211,7 +211,7 @@ impl AOC {
                     _ => print!("  Extra"),
                 }
                 if label.len() > 0 { print!(" ({})", label); }
-                if res.find("\n").is_some() { print!(": \n{}\n", res); } else { print!(": {}", res); }
+                if res.find("\n").is_some() { print!(": \n{}", res); } else { print!(": {}", res); }
                 println!();
             }
 
