@@ -12,6 +12,7 @@ pub fn main(day: &mut Day, input: &[u8]) {
 
     day.run(1, "", 100000, || part1(&input));
     day.run(2, "", 10000, || part2(&input));
+    day.run(2, "Unsorted", 10000, || part2_nosort(&input));
 }
 
 fn parse(data: &[u8]) -> Vec<Packet> {
@@ -41,12 +42,29 @@ fn part2(packets: &[Packet]) -> usize {
             if divider == 2 {
                 divider_2_pos = i + 1;
             } else if divider == 6 {
-                return divider_2_pos * (i + 1)
+                return divider_2_pos * (i + 1);
             }
         }
     }
 
     0
+}
+
+fn part2_nosort(packets: &[Packet]) -> usize {
+    let div1 = Packet::new_divider(2);
+    let div2 = Packet::new_divider(6);
+
+    let positions = packets.iter().fold::<[usize; 2], _>([1, 2], |[a, b]: [usize; 2], packet| {
+        if *packet < div1 {
+            [a + 1, b + 1] // div1 < div2, so a < div2 too.
+        } else if *packet < div2 {
+            [a, b + 1]
+        } else {
+            [a, b]
+        }
+    });
+
+    positions[0] * positions[1]
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
