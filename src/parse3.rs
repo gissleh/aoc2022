@@ -18,6 +18,15 @@ pub trait Parser<'i, T> {
         ParseResult::Bad(input)
     }
 
+    fn iterate(self, input: &'i [u8]) -> ParseIterator<'i, Self, T> where Self: Sized {
+        ParseIterator {
+            input,
+
+            parser: self,
+            spooky_ghost: PhantomData::default(),
+        }
+    }
+
     fn and<T2, P2: Parser<'i, T2> + Sized>(self, p2: P2) -> And<'i, T, T2, Self, P2> where Self: Sized {
         And(self, p2, PhantomData::default(), PhantomData::default())
     }
@@ -80,6 +89,26 @@ pub trait Parser<'i, T> {
 
     fn filter<F: Fn(&T) -> bool>(self, cb: F) -> Filter<'i, T, F, Self> where Self: Sized {
         Filter(self, cb, PhantomData::default())
+    }
+}
+
+pub struct ParseIterator<'i, P, T> {
+    parser: P,
+    input: &'i [u8],
+    spooky_ghost: PhantomData<T>,
+}
+
+impl<'i, P, T> Iterator for ParseIterator<'i, P, T> where P: Parser<'i, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.parser.parse(self.input) {
+            ParseResult::Good(t, new_input) => {
+                self.input = new_input;
+                Some(t)
+            }
+            ParseResult::Bad(_) => None
+        }
     }
 }
 
@@ -543,9 +572,9 @@ impl<'i, const N: usize> Parser<'i, &'i [u8]> for &[u8; N] {
     fn first_parsable(&self, input: &'i [u8]) -> ParseResult<'i, (&'i [u8], usize)> {
         match input.windows(self.len()).position(|sub| sub == self.as_slice()) {
             Some(pos) => {
-                let end = pos+self.len();
+                let end = pos + self.len();
                 ParseResult::Good((&input[pos..end], pos), &input[end..])
-            },
+            }
             None => ParseResult::Bad(input)
         }
     }
