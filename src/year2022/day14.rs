@@ -191,4 +191,10 @@ mod tests {
         let ResultAndCarry(sand_count, grid) = part1(grid, source_x);
         assert_eq!(part2(grid, sand_count, source_x), 93);
     }
+
+    #[test]
+    fn p2_bfs_works_on_example() {
+        let (grid, source_x) = parse(&P1_EXAMPLE);
+        assert_eq!(part2_bfs(&grid, source_x), 93);
+    }
 }
