@@ -171,6 +171,11 @@ impl<S, G> BFS<S, G> where S: Eq + Hash + Clone {
         &self.goals
     }
 
+    #[inline]
+    pub fn evaluated_states(&self) -> usize {
+        self.seen.len()
+    }
+
     pub fn new() -> BFS<S, G> {
         BFS {
             goals: SmallVec::new(),

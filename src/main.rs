@@ -2,8 +2,6 @@
 #![feature(option_result_contains)]
 #![feature(array_chunks)]
 
-extern crate core;
-
 use common::aoc::AOC;
 
 #[cfg(feature = "2015")]

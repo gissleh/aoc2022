@@ -436,7 +436,7 @@ impl<T, CG, MG> MegaGrid<T, CG, MG> where T: Copy,
     }
 
     pub fn new(initial_chunk: CG, meta_grid: MG, offset: Point<isize>, default_value: T) -> Self {
-        Self{
+        Self {
             chunk_size: Point(initial_chunk.width(), initial_chunk.height()),
             chunk_list: Vec::with_capacity(64),
 
@@ -446,6 +446,38 @@ impl<T, CG, MG> MegaGrid<T, CG, MG> where T: Copy,
             default_value,
         }
     }
+}
+
+pub fn render_grid<G, T, F>(grid: &G, cb: F) -> String
+    where G: GetterGrid<T> + FixedGrid,
+          F: Fn(&T) -> (char, Option<String>) {
+
+    let mut res = String::with_capacity(1024);
+    let mut annotations = Vec::new();
+
+    for y in 0..grid.height() {
+        for x in 0..grid.width() {
+            if let Some(v) = grid.get(&Point(x, y)) {
+                let (ch, annot) = cb(v);
+                res.push(ch);
+
+                if let Some(annot) = annot {
+                    annotations.push(annot);
+                }
+            }
+        }
+
+        if annotations.len() > 0 {
+            for annotation in annotations.drain(0..) {
+                res.push(' ');
+                res.push_str(&annotation);
+            }
+        }
+
+        res.push('\n');
+    }
+
+    res
 }
 
 #[cfg(test)]
