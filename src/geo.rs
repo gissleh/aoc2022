@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::iter::Step;
 use arrayvec::ArrayVec;
-use std::ops::{Add, Mul, Neg, Sub, Shr, Div, AddAssign, Rem};
+use std::ops::{Add, Mul, Neg, Sub, Shr, Div, AddAssign, Rem, SubAssign};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
 use num::traits::WrappingAdd;
@@ -32,6 +32,21 @@ impl<T> Point<T> {
     }
 }
 
+impl<T> Point<T> where T: Eq + Copy + Sub<Output=T> + AddAssign + SubAssign + Zero + One + Mul<Output=T> {
+    #[inline]
+    pub fn manhattan_diamond(&self, distance: T) -> impl Iterator<Item=Point<T>> {
+        ManhattanDiamond {
+            distance,
+
+            round: 0,
+            remaining: distance - T::one(),
+            current: Point(self.0, self.1 - distance),
+            zero: T::zero(),
+        }
+    }
+}
+
+
 impl<T> Point<T> where T: Ord {
     #[inline]
     pub fn side_of(&self, center: &Point<T>) -> usize {
@@ -55,7 +70,6 @@ impl<T> Point<T> where T: Roots + Sub<Output=T> + Copy {
         )
     }
 }
-
 
 
 impl<T> Point<T> where T: Sub<Output=T> + Add<Output=T> + Copy {
@@ -238,6 +252,53 @@ impl<T> Rect<T> where T: Ord {
     pub fn contains_point(&self, p: &Point<T>) -> bool {
         p.0 >= self.0.0 && p.0 < self.1.0
             && p.1 >= self.0.1 && p.1 < self.1.1
+    }
+}
+
+struct ManhattanDiamond<T> {
+    current: Point<T>,
+    distance: T,
+    round: usize,
+    remaining: T,
+    zero: T,
+}
+
+impl<T> Iterator for ManhattanDiamond<T> where T: Copy + Eq + Sub<Output=T> + AddAssign + SubAssign + One {
+    type Item = Point<T>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.current;
+        match self.round {
+            0 => {
+                self.current.0 += T::one();
+                self.current.1 += T::one();
+            }
+            1 => {
+                self.current.0 -= T::one();
+                self.current.1 += T::one();
+            }
+            2 => {
+                self.current.0 -= T::one();
+                self.current.1 -= T::one();
+            }
+            3 => {
+                self.current.0 += T::one();
+                self.current.1 -= T::one();
+            }
+            _ => {
+                return None;
+            }
+        }
+
+        if self.remaining == self.zero {
+            self.round += 1;
+            self.remaining = self.distance;
+        }
+
+        self.remaining -= T::one();
+
+        Some(current)
     }
 }
 
@@ -611,6 +672,31 @@ mod tests {
         println!("{:?}", c2.split_by(&c1));
 
         assert_eq!(c1.split_by(&c2).len(), 4);
+    }
+
+    #[test]
+    fn manhattan_diamond() {
+        fn p(x: i32, y: i32) -> Point<i32> { Point(x, y) }
+
+        assert_eq!(
+            Point(0i32, 0i32).manhattan_diamond(4).collect::<Vec<Point<i32>>>(),
+            vec![
+                p(0, -4), p(1, -3), p(2, -2), p(3, -1),
+                p(4, 0), p(3, 1), p(2, 2), p(1, 3),
+                p(0, 4), p(-1, 3), p(-2, 2), p(-3, 1),
+                p(-4, 0), p(-3, -1), p(-2, -2), p(-1, -3),
+            ],
+        );
+
+        assert_eq!(
+            Point(0i32, 0i32).manhattan_diamond(5).collect::<Vec<Point<i32>>>(),
+            vec![
+                p(0, -5), p(1, -4), p(2, -3), p(3, -2), p(4, -1),
+                p(5, 0), p(4, 1), p(3, 2), p(2, 3), p(1, 4),
+                p(0, 5), p(-1, 4), p(-2, 3), p(-3, 2), p(-4, 1),
+                p(-5, 0), p(-4, -1), p(-3, -2), p(-2, -3), p(-1, -4),
+            ],
+        );
     }
 }
 
