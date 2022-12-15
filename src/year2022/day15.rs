@@ -85,9 +85,9 @@ fn part1_slow(sensors: &[Sensor], y: i32) -> i32 {
 
 fn part2(sensors: &[Sensor], size: i32) -> i64 {
     let found_point = sensors.iter().enumerate()
-        .filter(|(i, s)| sensors.iter().enumerate()
-            .find(|(j, s2)| {
-                i != j && s.position.manhattan_distance(&s2.position) == (s.range + s2.range + 2)
+        .filter(|(i, s)| sensors.iter().skip(*i + 1)
+            .find(|s2| {
+                s.position.manhattan_distance(&s2.position) == (s.range + s2.range + 2)
             }).is_some())
         .flat_map(|(_, s)| s.position.manhattan_diamond(s.range + 1))
         .filter(|p| p.0 >= 0 && p.0 <= size && p.1 >= 0 && p.1 <= size)
