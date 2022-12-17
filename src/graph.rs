@@ -52,6 +52,10 @@ impl<N, E> Graph<N, E> {
         self.nodes.get(index).map(|n| &n.data)
     }
 
+    pub fn node_mut(&mut self, index: usize) -> Option<&mut N> {
+        self.nodes.get_mut(index).map(|n| &mut n.data)
+    }
+
     pub fn len(&self) -> usize {
         self.nodes.len()
     }

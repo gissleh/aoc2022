@@ -543,6 +543,47 @@ pub const fn any_byte<'i>() -> impl Parser<'i, u8> + Copy {
     AnyByte
 }
 
+#[derive(Copy, Clone)]
+struct NBytes(usize);
+
+impl<'i> Parser<'i, &'i [u8]> for NBytes {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {
+        if input.len() >= self.0 {
+            ParseResult::Good(&input[..self.0], &input[self.0..])
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+#[inline]
+pub const fn n_bytes<'i>(n: usize) -> impl Parser<'i, &'i [u8]> + Copy {
+    NBytes(n)
+}
+
+#[derive(Copy, Clone)]
+struct NBytesArray<const N: usize>;
+
+impl<'i, const N: usize> Parser<'i, [u8; N]> for NBytesArray<N> {
+    #[inline]
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, [u8; N]> {
+        if input.len() >= N {
+            let mut arr = [0u8; N];
+            arr.copy_from_slice(&input[..N]);
+
+            ParseResult::Good(arr, &input[N..])
+        } else {
+            ParseResult::Bad(input)
+        }
+    }
+}
+
+#[inline]
+pub const fn n_bytes_array<'i, const N: usize>() -> impl Parser<'i, [u8; N]> + Copy {
+    NBytesArray::<N>
+}
+
 impl<'i> Parser<'i, &'i [u8]> for &'static [u8] {
     #[inline]
     fn parse(&self, input: &'i [u8]) -> ParseResult<'i, &'i [u8]> {

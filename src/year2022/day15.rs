@@ -180,10 +180,9 @@ impl Sensor {
 
 #[cfg(test)]
 mod tests {
-    use common::grid2::VecGrid;
     use super::*;
 
-    const P1_EXAMPLE: &[u8] = include_bytes!("./test_fixtures/d13_p1_example.txt");
+    const P1_EXAMPLE: &[u8] = include_bytes!("test_fixtures/d15_p1_example.txt");
 
     #[test]
     fn range_at() {

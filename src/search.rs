@@ -35,6 +35,7 @@ pub struct Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
     seen: FxHashMap<S, C>,
     unexplored: BinaryHeap<AdjacentState<S, C>>,
     candidates: Vec<S>,
+    step_count: usize,
     cost_only_increases: bool,
     return_first_success: bool,
 }
@@ -52,6 +53,8 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
         self.seen.insert(initial_state, initial_cost);
 
         while let Some(AdjacentState(cost, _, state)) = self.unexplored.pop() {
+            self.step_count += 1;
+
             match step_function(&state) {
                 DijkstraResult::DeadEnd => {}
                 DijkstraResult::Success => {
@@ -110,11 +113,16 @@ impl<S, C> Dijkstra<S, C> where S: Hash + Eq + Clone, C: Ord + Copy + Add<Output
         &self.candidates
     }
 
+    pub fn step_count(&self) -> usize {
+        self.step_count
+    }
+
     pub fn new(cost_only_increases: bool, return_first_success: bool) -> Self {
         Self {
             seen: FxHashMap::default(),
             unexplored: BinaryHeap::with_capacity(64),
             candidates: Vec::with_capacity(if return_first_success { 0 } else { 8 }),
+            step_count: 0,
             cost_only_increases,
             return_first_success,
         }
