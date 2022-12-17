@@ -1,6 +1,7 @@
 #![feature(array_windows)]
 #![feature(option_result_contains)]
 #![feature(array_chunks)]
+#![feature(iter_repeat_n)]
 
 use common::aoc::AOC;
 
