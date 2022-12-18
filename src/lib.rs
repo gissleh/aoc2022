@@ -13,6 +13,7 @@ pub mod octree;
 pub mod grid;
 pub mod grid2;
 pub mod search;
+pub mod search2;
 pub mod graph;
 pub mod intcode;
 pub mod wfc;

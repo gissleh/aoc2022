@@ -303,8 +303,14 @@ impl<T> Iterator for ManhattanDiamond<T> where T: Copy + Eq + Sub<Output=T> + Ad
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, Default)]
 pub struct Vertex<T> (pub T, pub T, pub T);
+
+impl<T> Display for Vertex<T> where T: Display {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{},{},{}", self.0, self.1, self.2)
+    }
+}
 
 impl<T> Into<Point<T>> for Vertex<T> {
     fn into(self) -> Point<T> {

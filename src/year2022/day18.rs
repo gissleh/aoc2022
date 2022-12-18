@@ -1,34 +1,41 @@
-use smallvec::SmallVec;
 use common::aoc::Day;
 use common::constants::{U32_3WINDOWS, U32_BITS};
 use common::geo::{Point, Vertex};
 use common::grid2::{ArrayGrid, FixedGrid, GetterGrid};
 use common::parse3::{Parser, unsigned_int};
-use common::search::{BFS, BFSResult};
+use common::search2;
+use common::search2::{Bounded, Search};
 
 pub fn main(day: &mut Day, input: &[u8]) {
-    let grid = day.run_parse(1000, || parse(input));
+    let (grid, max) = day.run_parse(1000, || parse(input));
 
-    day.run(1, "", 10000, || part1(&grid));
-    day.run(2, "", 200, || part2(&grid));
+    day.note("Max", max);
+
+    day.run(1, "", 10000, || part1(&grid, &max));
+    day.run(2, "BFS", 200, || part2_dfs(&grid, &max));
+    day.run(2, "DFS", 200, || part2_bfs(&grid, &max));
 }
 
-fn parse(data: &[u8]) -> ArrayGrid<u32, 1024, 32> {
-    let parser = Vertex::comma_separated_parser(unsigned_int::<usize>())
-        .skip(b'\n');
+fn parse(data: &[u8]) -> (ArrayGrid<u32, 1024, 32>, Vertex<usize>) {
+    let parser = Vertex::comma_separated_parser(unsigned_int::<usize>()).skip(b'\n');
 
     let mut grid: ArrayGrid<u32, 1024, 32> = ArrayGrid::new();
+    let mut max = Vertex(0, 0, 0);
     for v in parser.iterate(data) {
-        *grid.get_mut(&Point(v.0 + 2, v.1 + 2)).unwrap() |= U32_BITS[v.2 + 2];
+        let v = v + Vertex(2, 2, 2);
+        if v.0 > max.0 { max.0 = v.0; }
+        if v.1 > max.1 { max.1 = v.1; }
+        if v.2 > max.2 { max.2 = v.2; }
+        *grid.get_mut(&Point(v.0, v.1)).unwrap() |= U32_BITS[v.2];
     }
 
-    grid
+    (grid, max)
 }
 
-fn part1<G: GetterGrid<u32> + FixedGrid>(grid: &G) -> u32 {
+fn part1<G: GetterGrid<u32> + FixedGrid>(grid: &G, max: &Vertex<usize>) -> u32 {
     let mut surface_area = 0;
-    for y in 1..grid.height() - 1 {
-        for x in 1..grid.width() - 1 {
+    for y in 1..=max.1 {
+        for x in 1..=max.0 {
             let p = Point(x, y);
             let current = *grid.get(&p).unwrap();
             let current_ones = current.count_ones();
@@ -40,7 +47,7 @@ fn part1<G: GetterGrid<u32> + FixedGrid>(grid: &G) -> u32 {
                 .sum::<u32>();
 
             // Add surface area from z points
-            for z in 0..32 {
+            for z in 2..=max.2 {
                 if current & U32_BITS[z] != 0 {
                     surface_area += 3 - (current & U32_3WINDOWS[z]).count_ones();
                 }
@@ -51,39 +58,47 @@ fn part1<G: GetterGrid<u32> + FixedGrid>(grid: &G) -> u32 {
     surface_area
 }
 
-fn part2<G: GetterGrid<u32>>(grid: &G) -> u32 {
-    let mut bfs: BFS<Vertex<usize>, u32> = BFS::new();
-    bfs.run(Vertex(1, 1, 1), |s: &Vertex<usize>| {
-        if s.0 == 0 || s.1 == 0 || s.2 == 0
-            || s.0 == 32 || s.1 == 32 || s.2 == 31 {
-            return BFSResult::DeadEnd;
-        }
+fn part2<G: GetterGrid<u32>, S: Search<Vertex<usize>>>(grid: &G, max: &Vertex<usize>, search: S) -> usize {
+    let m = *max + Vertex(1, 1, 1);
 
-        match grid.get(&Point(s.0, s.1)) {
-            Some(v) => {
-                if *v & U32_BITS[s.2] != 0 {
-                    BFSResult::DeadEnd
-                } else {
-                    let cardinals: SmallVec<[Vertex<usize>; 16]> = s.cardinals_offset(1)
-                        .iter().copied().collect();
-
-                    let count = cardinals.iter()
-                        .map(|p| *grid.get(&Point(p.0, p.1)).unwrap_or(&0) & U32_BITS[p.2])
-                        .filter(|v| *v != 0)
-                        .count();
-
-                    if count > 0 {
-                        BFSResult::Found(count as u32, cardinals)
+    search
+        .bounded(|s| s.0 > 0 && s.1 > 0 && s.2 > 0 && s.0 <= m.0 && s.1 <= m.1 && s.2 <= m.2)
+        .run(|dfs: &mut Bounded<S, _>, s: &Vertex<usize>| {
+            match grid.get(&Point(s.0, s.1)) {
+                Some(v) => {
+                    if *v & U32_BITS[s.2] != 0 {
+                        None
                     } else {
-                        BFSResult::Continue(cardinals)
+                        let cardinals = s.cardinals_offset(1);
+
+                        let count = cardinals.iter()
+                            .map(|p| *grid.get(&Point(p.0, p.1)).unwrap_or(&0) & U32_BITS[p.2])
+                            .filter(|v| *v != 0)
+                            .count();
+
+                        for p in cardinals.iter() {
+                            dfs.add_step(*p);
+                        }
+
+                        if count > 0 {
+                            Some(count)
+                        } else {
+                            None
+                        }
                     }
                 }
+                None => None,
             }
-            None => BFSResult::DeadEnd,
-        }
-    });
+        })
+        .sum()
+}
 
-    bfs.found_goals().iter().map(|(count, _)| count).sum()
+fn part2_dfs<G: GetterGrid<u32>>(grid: &G, max: &Vertex<usize>) -> usize {
+    part2(grid, max, search2::dfs(Vertex(1, 1, 1)))
+}
+
+fn part2_bfs<G: GetterGrid<u32>>(grid: &G, max: &Vertex<usize>) -> usize {
+    part2(grid, max, search2::bfs(Vertex(1, 1, 1)))
 }
 
 #[cfg(test)]
@@ -95,7 +110,12 @@ mod tests {
 
     #[test]
     fn p2_works_on_example() {
-        assert_eq!(part2(&parse(P1_SIMPLE_EXAMPLE)), 10);
-        assert_eq!(part2(&parse(P1_EXAMPLE)), 58);
+        let (grid_simple, max_simple) = parse(P1_SIMPLE_EXAMPLE);
+        let (grid, max) = parse(P1_EXAMPLE);
+
+        assert_eq!(part2_dfs(&grid_simple, &max_simple), 10);
+        assert_eq!(part2_dfs(&grid, &max), 58);
+        assert_eq!(part2_bfs(&grid_simple, &max_simple), 10);
+        assert_eq!(part2_dfs(&grid, &max), 58);
     }
 }
