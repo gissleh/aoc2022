@@ -5,7 +5,8 @@ use arrayvec::ArrayVec;
 use std::ops::{Add, Mul, Neg, Sub, Shr, Div, AddAssign, Rem, SubAssign};
 use num::integer::{sqrt, Roots};
 use num::{pow, One, Zero};
-use num::traits::WrappingAdd;
+use num::traits::{WrappingAdd};
+use crate::parse3::Parser;
 
 #[derive(Hash, Eq, PartialEq)]
 pub struct Point<T> (pub T, pub T);
@@ -302,8 +303,14 @@ impl<T> Iterator for ManhattanDiamond<T> where T: Copy + Eq + Sub<Output=T> + Ad
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct Vertex<T> (pub T, pub T, pub T);
+
+impl<T> Into<Point<T>> for Vertex<T> {
+    fn into(self) -> Point<T> {
+        Point(self.0, self.1)
+    }
+}
 
 impl<T> Vertex<T> {
     #[inline]
@@ -334,6 +341,21 @@ impl<T> Vertex<T> {
     }
 }
 
+impl<'i, T> Vertex<T> where T: 'i {
+    #[inline]
+    pub fn comma_separated_parser<TP>(term: TP) -> impl Parser<'i, Self> where TP: Parser<'i, T> + Copy {
+        term.and_discard(b',')
+            .skip_every(b' ')
+            .and(term)
+            .and_discard(b',')
+            .skip_every(b' ')
+            .and(term)
+            .map(|((x, y), z)| {
+                Vertex(x, y, z)
+            })
+    }
+}
+
 impl<T> Vertex<T> where T: Roots + Sub<Output=T> + Copy {
     pub fn distance(&self, rhs: &Vertex<T>) -> T {
         sqrt(
@@ -356,6 +378,28 @@ impl<T> Vertex<T> where T: Ord {
 
         self.x() >= min.x() && self.y() >= min.y() && self.z() >= min.z()
             && self.x() < max.x() && self.y() < max.y() && self.z() < max.z()
+    }
+}
+
+
+impl<T> Vertex<T> where T: Copy + Add<Output=T> + Sub<Output=T> {
+    #[inline]
+    pub fn cardinals_offset(&self, off: T) -> [Vertex<T>; 6] {
+        [
+            Vertex(self.0, self.1, self.2 - off),
+            Vertex(self.0, self.1 - off, self.2),
+            Vertex(self.0 - off, self.1, self.2),
+            Vertex(self.0 + off, self.1, self.2),
+            Vertex(self.0, self.1 + off, self.2),
+            Vertex(self.0, self.1, self.2 + off),
+        ]
+    }
+}
+
+impl<T> Vertex<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
+    #[inline]
+    pub fn cardinals(&self) -> [Vertex<T>; 6] {
+        self.cardinals_offset(T::one())
     }
 }
 
@@ -397,14 +441,6 @@ impl<T> Vertex<T> where T: Ord + Copy + Mul<Output=T> + Add<Output=T> + Shr<Outp
             7 => Vertex(T::zero(), T::zero(), T::zero()),
             _ => panic!("sub_center2({}) not allowed: index > 7", index),
         }
-    }
-}
-
-impl<T> Copy for Vertex<T> where T: Copy {}
-
-impl<T> Clone for Vertex<T> where T: Clone {
-    fn clone(&self) -> Self {
-        Self(self.0.clone(), self.1.clone(), self.2.clone())
     }
 }
 
