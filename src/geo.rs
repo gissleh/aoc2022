@@ -8,7 +8,7 @@ use num::{pow, One, Zero};
 use num::traits::{WrappingAdd};
 use crate::parse3::Parser;
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Hash, Eq, PartialEq, Default)]
 pub struct Point<T> (pub T, pub T);
 
 impl<T> Sub for Point<T> where T: Sub<Output=T> {
