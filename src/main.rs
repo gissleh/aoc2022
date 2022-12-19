@@ -24,7 +24,6 @@ fn main() {
     #[cfg(feature = "2019")]
     year2019::register_days();
 
-
     aoc.run_year(2022, year2022::main);
 }
 

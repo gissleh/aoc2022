@@ -15,6 +15,7 @@ pub mod grid2;
 pub mod search;
 pub mod search2;
 pub mod graph;
+#[cfg(feature = "2019")]
 pub mod intcode;
 pub mod wfc;
 pub mod parse2;

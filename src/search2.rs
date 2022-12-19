@@ -14,7 +14,7 @@ pub trait Search<S: Sized>: Sized {
         Bounded(self, f)
     }
 
-    fn run<R, F: Fn(&mut Self, &S) -> Option<R>>(self, f: F) -> Run<Self, F, S, R> {
+    fn run<R, F: FnMut(&mut Self, &S) -> Option<R>>(self, f: F) -> Run<Self, F, S, R> {
         Run(self, f, PhantomData::default())
     }
 }
@@ -23,7 +23,7 @@ pub struct Run<SEARCH, F, S, R> (SEARCH, F, PhantomData<(R, S)>);
 
 impl<SEARCH, F, S, R> Iterator for Run<SEARCH, F, S, R>
     where SEARCH: Search<S>,
-          F: Fn(&mut SEARCH, &S) -> Option<R> {
+          F: FnMut(&mut SEARCH, &S) -> Option<R> {
     type Item = R;
 
     #[inline]
@@ -65,7 +65,7 @@ struct DFS<S> {
     seen: FxHashSet<S>,
 }
 
-impl<S> Search<S> for DFS<S> where S: Hash + Eq + Copy {
+impl<S> Search<S> for DFS<S> where S: Hash + Eq + Clone {
     fn reset(&mut self) {
         self.stack.clear();
         self.seen.clear();
@@ -76,13 +76,13 @@ impl<S> Search<S> for DFS<S> where S: Hash + Eq + Copy {
     }
 
     fn add_step(&mut self, step: S) {
-        if self.seen.insert(step) {
+        if self.seen.insert(step.clone()) {
             self.stack.push(step);
         }
     }
 }
 
-pub fn dfs<S>(initial_step: S) -> impl Search<S> where S: Default + Hash + Eq + Copy {
+pub fn dfs<S>(initial_step: S) -> impl Search<S> where S: Default + Hash + Eq + Clone {
     let mut dfs = DFS { stack: Vec::with_capacity(64), seen: FxHashSet::default() };
     dfs.add_step(initial_step);
     dfs
@@ -93,7 +93,7 @@ struct BFS<S> {
     seen: FxHashSet<S>,
 }
 
-impl<S> Search<S> for BFS<S> where S: Hash + Eq + Copy {
+impl<S> Search<S> for BFS<S> where S: Hash + Eq + Clone {
     fn reset(&mut self) {
         self.queue.clear();
         self.seen.clear();
@@ -104,13 +104,13 @@ impl<S> Search<S> for BFS<S> where S: Hash + Eq + Copy {
     }
 
     fn add_step(&mut self, step: S) {
-        if self.seen.insert(step) {
+        if self.seen.insert(step.clone()) {
             self.queue.push_back(step);
         }
     }
 }
 
-pub fn bfs<S>(initial_step: S) -> impl Search<S> where S: Default + Hash + Eq + Copy {
+pub fn bfs<S>(initial_step: S) -> impl Search<S> where S: Default + Hash + Eq + Clone {
     let mut bfs = BFS { queue: VecDeque::with_capacity(64), seen: FxHashSet::default() };
     bfs.add_step(initial_step);
     bfs

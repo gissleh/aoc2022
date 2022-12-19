@@ -18,7 +18,7 @@ mod day15;
 mod day16;
 mod day17;
 mod day18;
-//mod day19;
+mod day19;
 //mod day20;
 //mod day21;
 //mod day22;
@@ -45,7 +45,7 @@ pub fn main(aoc: &AOC) {
     aoc.run_day(16, day16::main);
     aoc.run_day(17, day17::main);
     aoc.run_day(18, day18::main);
-    //aoc.run_day(19, day19::main);
+    aoc.run_day(19, day19::main);
     //aoc.run_day(20, day20::main);
     //aoc.run_day(21, day21::main);
     //aoc.run_day(22, day22::main);
