@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, VecDeque};
+use std::collections::hash_map::Entry;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -143,12 +144,19 @@ impl<C, H, S> Search<S> for Dijkstra<C, H, S> where C: Ord + Eq, H: Hash + Eq + 
     fn add_step(&mut self, step: S) {
         let seen_key = step.key();
         let step_cost = step.cost();
-        if let Some(seen_cost) = self.seen.get(&seen_key) {
-            if step_cost >= *seen_cost {
-                return;
+
+        match self.seen.entry(seen_key) {
+            Entry::Occupied(mut entry) => {
+                let seen_cost = entry.get_mut();
+                if step_cost >= *seen_cost {
+                    return;
+                }
+                *seen_cost = step_cost;
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(step_cost);
             }
         }
-        self.seen.insert(seen_key, step_cost);
 
         self.open.push(DijkstraStep(
             step.cost(), step,
