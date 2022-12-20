@@ -3,8 +3,6 @@
 #![feature(step_trait)]
 #![feature(split_array)]
 
-extern crate core;
-
 pub mod aoc;
 pub mod crt;
 pub mod parse;

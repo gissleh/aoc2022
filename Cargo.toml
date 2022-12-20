@@ -21,7 +21,7 @@ chrono = "0.4.6"
 time = "0.1.40"
 num = { version = "0.4.0" }
 rustc-hash = "1.1.0"
-smallvec = { version = "1.7.0", features = ["specialization"] }
+smallvec = { version = "1.10.0", features = ["specialization"] }
 md5 = "0.7.0"
-rayon = "1.5.1"
+rayon = "1.6.1"
 arrayvec = "0.7.2"
