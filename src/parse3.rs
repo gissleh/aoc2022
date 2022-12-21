@@ -90,6 +90,10 @@ pub trait Parser<'i, T> {
     fn filter<F: Fn(&T) -> bool>(self, cb: F) -> Filter<'i, T, F, Self> where Self: Sized {
         Filter(self, cb, PhantomData::default())
     }
+
+    fn whole_line(self) -> WholeLine<Self> where Self: Sized {
+        WholeLine(self)
+    }
 }
 
 pub struct ParseIterator<'i, P, T> {
@@ -316,6 +320,27 @@ impl<'i, T, TP, TS, P, PP, PS> Parser<'i, T> for Quoted<'i, T, TP, TS, P, PP, PS
         }
 
         ParseResult::Bad(input)
+    }
+}
+
+pub struct WholeLine<P> (P);
+
+impl<'i, T, P> Parser<'i, T> for WholeLine<P> where P: Parser<'i, T> + Sized {
+    fn parse(&self, input: &'i [u8]) -> ParseResult<'i, T> {
+        if let Some(line_len) = input.iter().position(|v| *v == b'\n') {
+            match self.0.parse(&input[..line_len]) {
+                ParseResult::Good(t, new_input) => {
+                    if new_input.len() == 0 {
+                        ParseResult::Good(t, &input[line_len + 1..])
+                    } else {
+                        ParseResult::Bad(input)
+                    }
+                }
+                ParseResult::Bad(_) => ParseResult::Bad(input)
+            }
+        } else {
+            ParseResult::Bad(input)
+        }
     }
 }
 
