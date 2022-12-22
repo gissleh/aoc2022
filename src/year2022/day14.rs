@@ -2,7 +2,7 @@ use std::cmp::{max, min};
 use smallvec::smallvec;
 use common::aoc::{Day, ResultAndCarry};
 use common::geo::Point;
-use common::grid2::{FixedGrid, GetterGrid, render_grid, VecGrid};
+use common::grid2::{FixedGrid, GetterMutGrid, render_grid, VecGrid};
 use common::parse3::{choice, Parser, point, unsigned_int};
 use common::search::{BFS, BFSResult};
 
@@ -73,7 +73,7 @@ fn parse(data: &[u8]) -> (VecGrid<u8>, usize) {
     (grid, 500 - min_x)
 }
 
-fn part1<G>(mut grid: G, source_x: usize) -> ResultAndCarry<u32, G> where G: GetterGrid<u8> + FixedGrid {
+fn part1<G>(mut grid: G, source_x: usize) -> ResultAndCarry<u32, G> where G: GetterMutGrid<u8> + FixedGrid {
     let mut sand_count = 0;
     let height = grid.height() - 1;
     let source = Point(source_x, 0);
@@ -93,7 +93,7 @@ fn part1<G>(mut grid: G, source_x: usize) -> ResultAndCarry<u32, G> where G: Get
     ResultAndCarry(sand_count, grid)
 }
 
-fn part2<G>(mut grid: G, mut sand_count: u32, source_x: usize) -> u32 where G: GetterGrid<u8> + FixedGrid {
+fn part2<G>(mut grid: G, mut sand_count: u32, source_x: usize) -> u32 where G: GetterMutGrid<u8> + FixedGrid {
     let height = grid.height() - 1;
     let source = Point(source_x, 0);
 
@@ -116,7 +116,7 @@ fn part2<G>(mut grid: G, mut sand_count: u32, source_x: usize) -> u32 where G: G
 }
 
 #[inline]
-fn simulate<G>(grid: &mut G, source: &Point<usize>, height: usize) -> (Point<usize>, bool) where G: GetterGrid<u8> {
+fn simulate<G>(grid: &mut G, source: &Point<usize>, height: usize) -> (Point<usize>, bool) where G: GetterMutGrid<u8> {
     let mut sand_grain = *source;
 
     while sand_grain.1 < height {
@@ -142,7 +142,7 @@ fn simulate<G>(grid: &mut G, source: &Point<usize>, height: usize) -> (Point<usi
     (sand_grain, false)
 }
 
-fn part2_bfs<G>(grid: &G, source_x: usize) -> usize where G: GetterGrid<u8> + FixedGrid {
+fn part2_bfs<G>(grid: &G, source_x: usize) -> usize where G: GetterMutGrid<u8> + FixedGrid {
     let mut bfs: BFS<Point<usize>, ()> = BFS::new();
 
     bfs.run(Point(source_x, 0), |pos| {
@@ -165,7 +165,7 @@ fn part2_bfs<G>(grid: &G, source_x: usize) -> usize where G: GetterGrid<u8> + Fi
 }
 
 #[allow(dead_code)]
-fn render_sand_grid<G>(grid: &G) -> String where G: GetterGrid<u8> + FixedGrid {
+fn render_sand_grid<G>(grid: &G) -> String where G: GetterMutGrid<u8> + FixedGrid {
     render_grid::<G, _, _>(&grid, |c| match *c {
         WALL => ('#', None),
         SAND => ('o', None),

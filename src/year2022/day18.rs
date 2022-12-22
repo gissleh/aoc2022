@@ -1,7 +1,7 @@
 use common::aoc::Day;
 use common::constants::{U32_3WINDOWS, U32_BITS};
 use common::geo::{Point, Vertex};
-use common::grid2::{ArrayGrid, FixedGrid, GetterGrid};
+use common::grid2::{ArrayGrid, FixedGrid, GetterMutGrid};
 use common::parse3::{Parser, unsigned_int};
 use common::search2;
 use common::search2::{Bounded, Search};
@@ -32,7 +32,7 @@ fn parse(data: &[u8]) -> (ArrayGrid<u32, 1024, 32>, Vertex<usize>) {
     (grid, max)
 }
 
-fn part1<G: GetterGrid<u32> + FixedGrid>(grid: &G, max: &Vertex<usize>) -> u32 {
+fn part1<G: GetterMutGrid<u32> + FixedGrid>(grid: &G, max: &Vertex<usize>) -> u32 {
     let mut surface_area = 0;
     for y in 1..=max.1 {
         for x in 1..=max.0 {
@@ -58,7 +58,7 @@ fn part1<G: GetterGrid<u32> + FixedGrid>(grid: &G, max: &Vertex<usize>) -> u32 {
     surface_area
 }
 
-fn part2<G: GetterGrid<u32>, S: Search<Vertex<usize>>>(grid: &G, max: &Vertex<usize>, search: S) -> usize {
+fn part2<G: GetterMutGrid<u32>, S: Search<Vertex<usize>>>(grid: &G, max: &Vertex<usize>, search: S) -> usize {
     let m = *max + Vertex(1, 1, 1);
 
     search
@@ -93,11 +93,11 @@ fn part2<G: GetterGrid<u32>, S: Search<Vertex<usize>>>(grid: &G, max: &Vertex<us
         .sum()
 }
 
-fn part2_dfs<G: GetterGrid<u32>>(grid: &G, max: &Vertex<usize>) -> usize {
+fn part2_dfs<G: GetterMutGrid<u32>>(grid: &G, max: &Vertex<usize>) -> usize {
     part2(grid, max, search2::dfs(Vertex(1, 1, 1)))
 }
 
-fn part2_bfs<G: GetterGrid<u32>>(grid: &G, max: &Vertex<usize>) -> usize {
+fn part2_bfs<G: GetterMutGrid<u32>>(grid: &G, max: &Vertex<usize>) -> usize {
     part2(grid, max, search2::bfs(Vertex(1, 1, 1)))
 }
 

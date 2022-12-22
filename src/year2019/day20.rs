@@ -1,6 +1,6 @@
 use common::geo::Point;
 use common::graph::Graph;
-use common::grid2::{FixedGrid, GetterGrid, IterableSliceGrid};
+use common::grid2::{FixedGrid, GetterMutGrid, IterableSliceGrid};
 use common::grid2::VecGrid;
 use common::search::{BFS, BFSResult, Dijkstra, DijkstraResult};
 

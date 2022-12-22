@@ -1,7 +1,7 @@
 use std::cmp::max;
 use common::aoc::{Day, ResultPair};
 use common::geo::Point;
-use common::grid2::{FixedGrid, GetterGrid, VecGrid};
+use common::grid2::{FixedGrid, GetterMutGrid, VecGrid};
 
 pub fn main(day: &mut Day, input: &[u8]) {
     let input = day.run_parse(1000, || parse(input));
@@ -21,7 +21,7 @@ fn parse(data: &[u8]) -> VecGrid<u8> {
     )
 }
 
-fn both_parts<G>(input: &G) -> ResultPair<usize, u32> where G: GetterGrid<u8> + FixedGrid {
+fn both_parts<G>(input: &G) -> ResultPair<usize, u32> where G: GetterMutGrid<u8> + FixedGrid {
     let mut visible_count = 0;
     let mut best_scenic_score = 0;
     for y in 1..input.height() - 1 {

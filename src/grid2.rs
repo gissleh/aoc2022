@@ -124,7 +124,9 @@ impl<T, const S: usize, const W: usize> GetterGrid<T> for ArrayGrid<T, S, W> {
 
         self.data.get(pos.1 * W + pos.0)
     }
+}
 
+impl<T, const S: usize, const W: usize> GetterMutGrid<T> for ArrayGrid<T, S, W> {
     fn get_mut(&mut self, pos: &Point<usize>) -> Option<&mut T> {
         if pos.0 >= W {
             return None;
@@ -229,7 +231,9 @@ impl<T> GetterGrid<T> for VecGrid<T> {
 
         self.data.get(pos.1 * self.width + pos.0)
     }
+}
 
+impl<T> GetterMutGrid<T> for VecGrid<T> {
     fn get_mut(&mut self, pos: &Point<usize>) -> Option<&mut T> {
         if pos.0 >= self.width {
             return None;
@@ -271,6 +275,9 @@ pub trait FixedGrid {
 
 pub trait GetterGrid<T> {
     fn get(&self, pos: &Point<usize>) -> Option<&T>;
+}
+
+pub trait GetterMutGrid<T>: GetterGrid<T> {
     fn get_mut(&mut self, pos: &Point<usize>) -> Option<&mut T>;
 }
 
@@ -382,7 +389,7 @@ impl<'a, T> Iterator for SliceIter<'a, T> {
 }
 
 /// A MegaGrid is a sparse grid
-pub struct MegaGrid<T, CG, MG> where CG: FixedGrid + Clone + GetterGrid<T>, MG: GetterGrid<usize> {
+pub struct MegaGrid<T, CG, MG> where CG: FixedGrid + Clone + GetterMutGrid<T>, MG: GetterMutGrid<usize> {
     initial_chunk: CG,
     default_value: T,
     offset: Point<isize>,
@@ -392,8 +399,8 @@ pub struct MegaGrid<T, CG, MG> where CG: FixedGrid + Clone + GetterGrid<T>, MG: 
 }
 
 impl<T, CG, MG> MegaGrid<T, CG, MG> where T: Copy,
-                                          CG: FixedGrid + Clone + GetterGrid<T>,
-                                          MG: GetterGrid<usize> {
+                                          CG: FixedGrid + Clone + GetterMutGrid<T>,
+                                          MG: GetterMutGrid<usize> {
     pub fn get(&self, p: &Point<isize>) -> Option<&T> {
         let p = *p - self.offset;
         if p.0 < 0 || p.1 < 0 {
@@ -448,10 +455,70 @@ impl<T, CG, MG> MegaGrid<T, CG, MG> where T: Copy,
     }
 }
 
+pub struct SubGrid<'i, G> {
+    super_grid: &'i G,
+    offset: Point<usize>,
+    width: usize,
+    height: usize,
+}
+
+impl<'i, G> Clone for SubGrid<'i, G> {
+    fn clone(&self) -> Self {
+        Self{
+            super_grid: self.super_grid,
+            offset: self.offset,
+            width: self.width,
+            height: self.height,
+        }
+    }
+}
+
+impl<'i, G> Copy for SubGrid<'i, G> {}
+
+impl<'i, G> SubGrid<'i, G> {
+    pub fn super_pos(&self, p: &Point<usize>) -> Point<usize> {
+        self.offset + *p
+    }
+
+    pub fn new(super_grid: &'i G, offset: Point<usize>, width: usize, height: usize) -> Self {
+        Self { super_grid, offset, width, height }
+    }
+}
+
+impl<'i, G> FixedGrid for SubGrid<'i, G> {
+    #[inline]
+    fn width(&self) -> usize { self.width }
+    #[inline]
+    fn height(&self) -> usize { self.height }
+}
+
+impl<'i, G, T> GetterGrid<T> for SubGrid<'i, G> where G: GetterGrid<T> {
+    fn get(&self, pos: &Point<usize>) -> Option<&T> {
+        self.super_grid.get(&(self.offset + *pos))
+    }
+}
+
+pub fn render_char_grid<G, T>(grid: &G) -> String
+    where G: GetterGrid<T> + FixedGrid,
+          T: Into<char> + Copy {
+    let mut res = String::with_capacity(1024);
+
+    for y in 0..grid.height() {
+        for x in 0..grid.width() {
+            if let Some(v) = grid.get(&Point(x, y)) {
+                res.push((*v).into());
+            }
+        }
+
+        res.push('\n');
+    }
+
+    res
+}
+
 pub fn render_grid<G, T, F>(grid: &G, cb: F) -> String
     where G: GetterGrid<T> + FixedGrid,
           F: Fn(&T) -> (char, Option<String>) {
-
     let mut res = String::with_capacity(1024);
     let mut annotations = Vec::new();
 

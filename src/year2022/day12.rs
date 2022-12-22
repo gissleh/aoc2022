@@ -1,6 +1,6 @@
 use common::aoc::Day;
 use common::geo::Point;
-use common::grid2::{FixedGrid, GetterGrid, VecGrid};
+use common::grid2::{FixedGrid, GetterMutGrid, VecGrid};
 use common::search::{BFS, BFSResult};
 
 pub fn main(day: &mut Day, input: &[u8]) {
@@ -34,7 +34,7 @@ fn parse(data: &[u8]) -> (VecGrid<u8>, Point<usize>, Point<usize>) {
     (VecGrid::new_from(width, filtered_data), start_point, end_point)
 }
 
-fn part1<G: FixedGrid + GetterGrid<u8>>(input: &G, start_point: &Point<usize>, end_point: &Point<usize>) -> u32 {
+fn part1<G: FixedGrid + GetterMutGrid<u8>>(input: &G, start_point: &Point<usize>, end_point: &Point<usize>) -> u32 {
     let mut bfs: BFS<Point<usize>, u8> = BFS::new();
 
     let (_, distance) = bfs.run(*start_point, |p| {
@@ -58,7 +58,7 @@ fn part1<G: FixedGrid + GetterGrid<u8>>(input: &G, start_point: &Point<usize>, e
     distance
 }
 
-fn part2<G: FixedGrid + GetterGrid<u8>>(input: &G, end_point: &Point<usize>) -> u32 {
+fn part2<G: FixedGrid + GetterMutGrid<u8>>(input: &G, end_point: &Point<usize>) -> u32 {
     let mut bfs: BFS<Point<usize>, u8> = BFS::new();
 
     let (_, distance) = bfs.run(*end_point, |p| {

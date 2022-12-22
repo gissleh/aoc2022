@@ -1,6 +1,6 @@
 use common::aoc::Day;
 use common::geo::Point;
-use common::grid2::{FixedGrid, GetterGrid, IterableSliceGrid, RowGrid, VecGrid};
+use common::grid2::{FixedGrid, GetterMutGrid, IterableSliceGrid, RowGrid, VecGrid};
 use common::search::{Dijkstra, DijkstraResult};
 
 pub fn main(day: &mut Day, input: &[u8]) {
@@ -34,14 +34,14 @@ fn parse_grid(data: &[u8]) -> VecGrid<Piece> {
     )
 }
 
-fn part1<G>(grid: &G) -> u32 where G: GetterGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
+fn part1<G>(grid: &G) -> u32 where G: GetterMutGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
     let mut board = Board::new(grid);
     let (.., outcome_score) = board.run_game();
 
     outcome_score
 }
 
-fn part2<G>(grid: &G) -> u32 where G: GetterGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
+fn part2<G>(grid: &G) -> u32 where G: GetterMutGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
     for p in 4..255 {
         let mut board = Board::new(grid);
         board.elf_power = p;
@@ -56,7 +56,7 @@ fn part2<G>(grid: &G) -> u32 where G: GetterGrid<Piece> + RowGrid<Piece> + Fixed
 
 
 #[derive(Clone)]
-struct Board<G> where G: GetterGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
+struct Board<G> where G: GetterMutGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
     grid: G,
     move_dijkstra: Dijkstra<(Point<usize>, Option<Point<usize>>), usize>,
     elves: u8,
@@ -65,7 +65,7 @@ struct Board<G> where G: GetterGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone 
     everyone_stuck: bool,
 }
 
-impl<G> Board<G> where G: GetterGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
+impl<G> Board<G> where G: GetterMutGrid<Piece> + RowGrid<Piece> + FixedGrid + Clone + IterableSliceGrid<Piece> {
     fn run_game(&mut self) -> (u8, u32, u32) {
         for turns in 0.. {
             if let Some(winner_team) = self.run_turn() {

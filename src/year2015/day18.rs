@@ -1,13 +1,13 @@
 use std::mem;
 use common::geo::Point;
-use common::grid2::{ArrayGrid, CountableGrid, FixedGrid, GetterGrid, NeighborCountGrid};
+use common::grid2::{ArrayGrid, CountableGrid, FixedGrid, GetterMutGrid, NeighborCountGrid};
 common::day!(parse, part1, part2, 1000, 50, 50);
 
-fn part1<G>(grid: &G) -> u32 where G: FixedGrid + GetterGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
+fn part1<G>(grid: &G) -> u32 where G: FixedGrid + GetterMutGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
     part1_with_steps::<G, 100>(grid)
 }
 
-fn part1_with_steps<G, const N: usize>(grid: &G) -> u32 where G: FixedGrid + GetterGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
+fn part1_with_steps<G, const N: usize>(grid: &G) -> u32 where G: FixedGrid + GetterMutGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
     let mut curr_grid = grid.clone();
     let mut next_grid = grid.clone();
 
@@ -25,11 +25,11 @@ fn part1_with_steps<G, const N: usize>(grid: &G) -> u32 where G: FixedGrid + Get
     curr_grid.count_occurrences_of(&b'#') as u32
 }
 
-fn part2<G>(grid: &G) -> u32 where G: FixedGrid + GetterGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
+fn part2<G>(grid: &G) -> u32 where G: FixedGrid + GetterMutGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
     part2_with_steps::<G, 100>(grid)
 }
 
-fn part2_with_steps<G, const N: usize>(grid: &G) -> u32 where G: FixedGrid + GetterGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
+fn part2_with_steps<G, const N: usize>(grid: &G) -> u32 where G: FixedGrid + GetterMutGrid<u8> + Clone + NeighborCountGrid<u8> + CountableGrid<u8> {
     let mut curr_grid = grid.clone();
     let mut next_grid = grid.clone();
 

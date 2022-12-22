@@ -155,6 +155,21 @@ impl<T> Point<T> where T: One + Copy + Add<Output=T> + Sub<Output=T> {
     }
 }
 
+impl<T> Point<T> where T: One + Zero + Copy + Add<Output=T> + Sub<Output=T> + Eq {
+    #[inline]
+    pub fn cardinals_wrapping(&self, r: T, b: T) -> [Point<T>; 4] {
+        let zero = T::zero();
+        let one = T::one();
+
+        let up = if self.1 == zero { Point(self.0, b) } else { Point(self.0, self.1 - one) };
+        let left = if self.0 == zero { Point(r, self.1) } else { Point(self.0 - one, self.1) };
+        let right = if self.0 == r { Point(zero, self.1) } else { Point(self.0 + one, self.1) };
+        let down = if self.1 == b { Point(self.0, zero) } else { Point(self.0, self.1 + one) };
+
+        [up, left, right, down]
+    }
+}
+
 impl<T> Display for Point<T> where T: Display {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "<{}, {}>", self.0, self.1)
@@ -739,6 +754,13 @@ mod tests {
                 p(-5, 0), p(-4, -1), p(-3, -2), p(-2, -3), p(-1, -4),
             ],
         );
+    }
+
+    #[test]
+    fn cardinals_wrapping() {
+        assert_eq!(Point(2, 2).cardinals_wrapping(2, 2), [
+            Point(2, 1), Point(1, 2), Point(0, 2), Point(2, 0),
+        ])
     }
 }
 

@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 use common::aoc::Day;
-use common::grid2::{FixedGrid, GetterGrid, RowGrid, VecGrid};
+use common::grid2::{FixedGrid, GetterMutGrid, RowGrid, VecGrid};
 use common::parse2;
 use common::geo::Point;
 
