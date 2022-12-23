@@ -11,6 +11,7 @@ use crate::parse3::Parser;
 #[derive(Hash, Eq, PartialEq, Default)]
 pub struct Point<T> (pub T, pub T);
 
+
 impl<T> Sub for Point<T> where T: Sub<Output=T> {
     type Output = Point<T>;
 

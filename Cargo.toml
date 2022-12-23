@@ -18,6 +18,7 @@ strip = "debuginfo"
 
 [dependencies]
 chrono = "0.4.6"
+hashbrown = "0.13.1"
 time = "0.1.40"
 num = { version = "0.4.0" }
 rustc-hash = "1.1.0"

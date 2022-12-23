@@ -1,7 +1,7 @@
-use rustc_hash::{FxHashMap, FxHashSet};
 use common::aoc::{Day, ResultPair};
 use common::geo::{Point, Rect};
 use common::grid2::{FixedGrid, GetterGrid, VecGrid};
+use hashbrown::{HashMap, HashSet};
 
 const MOVE_RULES: &[([Point<i32>; 3], Point<i32>); 4] = &[
     ([Point(-1, -1), Point(0, -1), Point(1, -1)], Point(0, -1)),
@@ -23,10 +23,11 @@ fn parse(data: &[u8]) -> VecGrid<u8> {
     )
 }
 
+
 fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> + FixedGrid {
-    let mut elves = FxHashSet::<Point<i32>>::default();
-    let mut next_moves = FxHashMap::<Point<i32>, Point<i32>>::default();
-    let mut bad_moves = FxHashSet::<Point<i32>>::default();
+    let mut elves = HashSet::<Point<i32>>::with_capacity(1024);
+    let mut next_moves = HashMap::<Point<i32>, Point<i32>>::with_capacity(1024);
+    let mut bad_moves = HashSet::<Point<i32>>::with_capacity(1024);
     let mut result_after_10 = 0;
     let mut rounds = 1;
 
@@ -52,10 +53,10 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
 
             any_moved = true;
 
-            for i in start_dir..start_dir+4 {
+            for i in start_dir..start_dir + 4 {
                 let (points, dir) = &MOVE_RULES[i % 4];
 
-                if points.iter().map(|p| *p + *elf).find(|p| elves.contains(&p)).is_none() {
+                if points.iter().map(|p| *p + *elf).find(|p| elves.contains(p)).is_none() {
                     let next_move = *elf + *dir;
                     if next_moves.insert(next_move, *elf).is_some() {
                         bad_moves.insert(next_move);
