@@ -1,4 +1,3 @@
-use std::cmp::{max, min};
 use rustc_hash::{FxHashMap, FxHashSet};
 use common::aoc::{Day, ResultPair};
 use common::geo::{Point, Rect};
@@ -29,6 +28,7 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
     let mut next_moves = FxHashMap::<Point<i32>, Point<i32>>::default();
     let mut bad_moves = FxHashSet::<Point<i32>>::default();
     let mut result_after_10 = 0;
+    let mut rounds = 1;
 
     for p in Point::range(initial_grid.width(), initial_grid.height()) {
         if *initial_grid.get(&p).unwrap() == b'#' {
@@ -43,7 +43,7 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
         bad_moves.clear();
 
         for elf in elves.iter() {
-            let mut found_any = elf.neighbors().iter()
+            let found_any = elf.neighbors().iter()
                 .find(|neigh| elves.contains(*neigh))
                 .is_some();
             if !found_any {
@@ -66,6 +66,7 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
             }
         }
 
+        #[cfg(test)] println!("Round {}", n + 1);
         for (dst, src) in next_moves.iter() {
             if bad_moves.contains(dst) {
                 continue;
@@ -76,7 +77,7 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
             elves.insert(*dst);
         }
 
-        if n < 11 {
+        if n == 9 {
             let elf = elves.iter().next().unwrap();
             let mut rect = Rect(*elf, *elf);
             for elf in elves.iter() {
@@ -89,14 +90,15 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
             #[cfg(test)] println!("{:?} {}", rect, result_after_10);
         }
 
-        if n > 10 && !any_moved {
+        if n >= 10 && !any_moved {
             break;
         }
 
         start_dir += 1;
+        rounds += 1;
     }
 
-    ResultPair(result_after_10, 0)
+    ResultPair(result_after_10, rounds)
 }
 
 #[cfg(test)]
@@ -113,5 +115,11 @@ mod tests {
 
         let ResultPair(p1, _) = puzzle(&parse(P1_EXAMPLE_1));
         assert_eq!(p1, 110);
+    }
+
+    #[test]
+    fn p2_works_on_example() {
+        let ResultPair(_, p2) = puzzle(&parse(P1_EXAMPLE_1));
+        assert_eq!(p2, 20);
     }
 }
