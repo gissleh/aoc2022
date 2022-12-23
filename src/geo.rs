@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::cmp::{max, min, Ordering};
 use std::fmt::{Display, Formatter};
 use std::iter::Step;
 use arrayvec::ArrayVec;
@@ -258,6 +258,22 @@ impl<T> std::fmt::Debug for Point<T> where T: std::fmt::Debug {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Rect<T>(pub Point<T>, pub Point<T>);
+
+impl<T> Rect<T> where T: Copy + One + Ord + Add<Output=T> + Sub<Output=T> {
+    pub fn envelop(&mut self, p: &Point<T>) {
+        let one = T::one();
+        self.0.0 = min(self.0.0, p.0);
+        self.0.1 = min(self.0.1, p.1);
+        self.1.0 = max(self.1.0, p.0 + one);
+        self.1.1 = max(self.1.1, p.1 + one);
+    }
+}
+
+impl<T> Rect<T> where T: Copy + Ord + Mul<Output=T> + Sub<Output=T> {
+    pub fn area(&self) -> T {
+        (self.1.0 - self.0.0) * (self.1.1 - self.0.1)
+    }
+}
 
 impl<T> Rect<T> where T: Ord {
     pub fn contains_point_inclusive(&self, p: &Point<T>) -> bool {
