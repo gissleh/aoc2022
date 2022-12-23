@@ -13,7 +13,7 @@ const MOVE_RULES: &[([Point<i32>; 3], Point<i32>); 4] = &[
 pub fn main(day: &mut Day, input: &[u8]) {
     let initial_grid = day.run_parse(1000, || parse(input));
 
-    day.run(3, "", 10000, || puzzle(&initial_grid));
+    day.run(3, "", 20, || puzzle(&initial_grid));
 }
 
 fn parse(data: &[u8]) -> VecGrid<u8> {
