@@ -71,7 +71,7 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
                 continue;
             }
 
-            println!("{:?} -> {:?}", src, dst);
+            #[cfg(test)] println!("{:?} -> {:?}", src, dst);
             elves.remove(src);
             elves.insert(*dst);
         }
@@ -85,8 +85,8 @@ fn puzzle<G>(initial_grid: &G) -> ResultPair<i32, i32> where G: GetterGrid<u8> +
 
             result_after_10 = rect.area() - (elves.len() as i32);
 
-            println!("{:?}", elves);
-            println!("{:?} {}", rect, result_after_10);
+            #[cfg(test)] println!("{:?}", elves);
+            #[cfg(test)] println!("{:?} {}", rect, result_after_10);
         }
 
         if n > 10 && !any_moved {
