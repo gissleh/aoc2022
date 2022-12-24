@@ -3,6 +3,7 @@ use std::collections::{BinaryHeap, VecDeque};
 use std::collections::hash_map::Entry;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
+use std::ops::Add;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub trait Search<S: Sized>: Sized {
@@ -112,8 +113,32 @@ impl<S> Search<S> for BFS<S> where S: Hash + Eq + Clone {
     }
 }
 
-pub fn bfs<S>(initial_step: S) -> impl Search<S> where S: Default + Hash + Eq + Clone {
+pub fn bfs<S>(initial_step: S) -> impl Search<S> where S: Hash + Eq + Clone {
     let mut bfs = BFS { queue: VecDeque::with_capacity(64), seen: FxHashSet::default() };
+    bfs.add_step(initial_step);
+    bfs
+}
+
+struct BFSUnhashed<S> {
+    queue: VecDeque<S>,
+}
+
+impl<S> Search<S> for BFSUnhashed<S> where S: Clone {
+    fn reset(&mut self) {
+        self.queue.clear();
+    }
+
+    fn next_step(&mut self) -> Option<S> {
+        self.queue.pop_front()
+    }
+
+    fn add_step(&mut self, step: S) {
+        self.queue.push_back(step);
+    }
+}
+
+pub fn bfs_unhashed<S>(initial_step: S) -> impl Search<S> where S: Clone {
+    let mut bfs = BFSUnhashed { queue: VecDeque::with_capacity(64) };
     bfs.add_step(initial_step);
     bfs
 }
@@ -195,7 +220,7 @@ pub trait DijkstraState<C: Ord + Eq, K: Hash + Eq>: Clone {
 /// WithCost is a wrapper type for a state that can be used for bfs, dfs and dijkstra that will
 /// allow you to associate cost without it making dfs/bfs run forever.
 #[derive(Clone, Copy, Default)]
-pub struct WithCost<S, C> (S, C);
+pub struct WithCost<S, C> (pub S, pub C);
 
 impl<S, C> PartialEq<Self> for WithCost<S, C> where S: PartialEq {
     fn eq(&self, other: &Self) -> bool {
@@ -214,6 +239,35 @@ impl<S, C> Hash for WithCost<S, C> where S: Hash + Eq {
 impl<S, C> DijkstraState<C, S> for WithCost<S, C> where S: Hash + Eq + Clone, C: Ord + Eq + Copy + Clone {
     fn cost(&self) -> C {
         self.1
+    }
+
+    fn key(&self) -> S {
+        self.0.clone()
+    }
+}
+
+/// WithCost is a wrapper type for a state that can be used for bfs, dfs and dijkstra that will
+/// allow you to associate cost without it making dfs/bfs run forever.
+#[derive(Clone, Copy, Default)]
+pub struct WithCostHeuristic<S, C> (pub S, pub C, pub C);
+
+impl<S, C> PartialEq<Self> for WithCostHeuristic<S, C> where S: PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl<S, C> Eq for WithCostHeuristic<S, C> where S: PartialEq {}
+
+impl<S, C> Hash for WithCostHeuristic<S, C> where S: Hash + Eq {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state)
+    }
+}
+
+impl<S, C> DijkstraState<C, S> for WithCostHeuristic<S, C> where S: Hash + Eq + Clone, C: Ord + Eq + Copy + Clone + Add<Output=C> {
+    fn cost(&self) -> C {
+        self.1 + self.2
     }
 
     fn key(&self) -> S {

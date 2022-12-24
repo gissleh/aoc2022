@@ -106,6 +106,17 @@ impl<T> Point<T> where T: Copy + Add<Output=T> + Sub<Output=T> {
     }
 
     #[inline]
+    pub fn self_and_cardinals_offset(&self, off: T) -> [Point<T>; 5] {
+        [
+            *self,
+            Point(self.0, self.1 - off),
+            Point(self.0 - off, self.1),
+            Point(self.0 + off, self.1),
+            Point(self.0, self.1 + off),
+        ]
+    }
+
+    #[inline]
     pub fn cardinals_offset(&self, off: T) -> [Point<T>; 4] {
         [
             Point(self.0, self.1 - off),
