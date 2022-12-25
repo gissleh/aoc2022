@@ -446,7 +446,7 @@ mod tests {
 
     const P1_EXAMPLE: &[u8] = include_bytes!("test_fixtures/d16_p1_example.txt");
 
-    #[test]
+    #[test] #[ignore]
     fn parse_works_on_example() {
         let g = parse(P1_EXAMPLE);
 
@@ -480,12 +480,12 @@ mod tests {
         assert_eq!(jj.flow_rate, 21);
     }
 
-    #[test]
+    #[test] #[ignore]
     fn p1_works_on_example() {
         assert_eq!(part1_dfs(&parse(P1_EXAMPLE)), 1651);
     }
 
-    #[test]
+    #[test] #[ignore]
     fn p2_works_on_example() {
         assert_eq!(part2_dfs(&parse(P1_EXAMPLE)), 1707);
     }

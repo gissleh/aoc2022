@@ -410,7 +410,7 @@ impl<'i, G> CubeCursor<'i, G> where G: GetterGrid<u8> {
 
 #[cfg(test)]
 mod tests {
-    use common::grid2::{render_char_grid, render_grid};
+    use common::grid2::{render_char_grid};
     use super::*;
 
     const P1_EXAMPLE: &[u8] = include_bytes!("test_fixtures/d22_p1_example.txt");
@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn cube_new_splits_correctly() {
-        let (grid, instructions) = parse(P1_EXAMPLE);
+        let (grid, _) = parse(P1_EXAMPLE);
         let cube = Cube::new(&grid, 4);
 
         assert_eq!(cube.faces.len(), 6);
@@ -471,7 +471,7 @@ mod tests {
         cube.faces[4].neighbors = [(5, RIGHT), (0, DOWN), (5, LEFT), (3, UP)];
         cube.faces[5].neighbors = [(4, RIGHT), (5, DOWN), (4, LEFT), (5, UP)];
 
-        let mut res = cube.run(0, Point(0, 0), &instructions);
+        let res = cube.run(0, Point(0, 0), &instructions);
         assert_eq!(res, (Point(7, 5), RIGHT));
     }
 
@@ -530,7 +530,7 @@ mod tests {
     fn cube_connects_adjacent_faces() {
         const BLANK: (u8, i8) = (NO_NEIGHBOR, -1);
 
-        let (grid, instructions) = parse(P1_EXAMPLE);
+        let (grid, _) = parse(P1_EXAMPLE);
         let mut cube = Cube::new(&grid, 4);
         cube.connect_adjacent_faces();
 
@@ -544,9 +544,7 @@ mod tests {
 
     #[test]
     fn cube_fold_once_does_it_right() {
-        const BLANK: (u8, i8) = (NO_NEIGHBOR, -1);
-
-        let (grid, instructions) = parse(P1_EXAMPLE);
+        let (grid, _) = parse(P1_EXAMPLE);
         let mut cube = Cube::new(&grid, 4);
         cube.connect_adjacent_faces();
 
