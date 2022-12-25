@@ -12,8 +12,6 @@ pub fn main(day: &mut Day, input: &[u8]) {
 
     day.run(3, "", 5, || part1(&blizzards, valley_width, valley_height));
     day.run(3, "Masks", 5, || part1_masks(&blizzards, valley_width, valley_height));
-
-    day.select_label("");
 }
 
 fn parse(data: &[u8]) -> (Vec<(u8, Point<i16>)>, i16, i16) {
